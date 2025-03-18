@@ -1,6 +1,7 @@
 import base64
 import concurrent.futures
 import functools
+import json
 import logging
 import math
 import pathlib
@@ -10,6 +11,7 @@ import typing
 import beartype
 import einops.layers.torch
 import gradio as gr
+import matplotlib
 import numpy as np
 import PIL.Image
 import pyvips
@@ -22,7 +24,7 @@ from . import data, modeling
 
 log_format = "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
-logger = logging.getLogger("app.py")
+logger = logging.getLogger("app")
 # Disable pyvips info logging
 logging.getLogger("pyvips").setLevel(logging.WARNING)
 
@@ -33,11 +35,10 @@ logging.getLogger("pyvips").setLevel(logging.WARNING)
 
 
 RESIZE_SIZE = 512
+"""Resize shorter size to this size in pixels."""
 
 CROP_SIZE = (448, 448)
-
-DEBUG = True
-"""Whether we are debugging."""
+"""Crop size in pixels."""
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 """Hardware accelerator, if any."""
@@ -45,6 +46,8 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 CWD = pathlib.Path(".")
 
 MODEL_LOOKUP = modeling.get_model_lookup()
+
+COLORMAP = matplotlib.colormaps.get_cmap("plasma")
 
 logger.info("Set global constants.")
 
@@ -54,7 +57,6 @@ logger.info("Set global constants.")
 ##########
 
 
-@jaxtyped(typechecker=beartype.beartype)
 @functools.cache
 def load_vit(
     model_cfg: modeling.Config,
@@ -73,9 +75,13 @@ def load_vit(
     )
     logger.info("Loaded ViT: %s.", model_cfg.key)
 
-    # Normalizing constants
-    acts_dataset = activations.Dataset(model_cfg.acts_cfg)
-    logger.info("Loaded dataset norms: %s.", model_cfg.key)
+    try:
+        # Normalizing constants
+        acts_dataset = activations.Dataset(model_cfg.acts_cfg)
+        logger.info("Loaded dataset norms: %s.", model_cfg.key)
+    except RuntimeError as err:
+        logger.warning("Error loading ViT: %s", err)
+        return None, None, None, None
 
     return vit, vit_transform, acts_dataset.scalar.item(), acts_dataset.act_mean
 
@@ -106,7 +112,8 @@ def load_tensors(
     model_cfg: modeling.Config,
 ) -> tuple[Int[Tensor, "d_sae top_k"], Float[Tensor, "d_sae top_k n_patches"]]:
     top_img_i = load_tensor(model_cfg.tensor_dpath / "top_img_i.pt")
-    top_values = load_tensor(model_cfg.tensor_dpath / "top_values.pt")
+    # TODO: For some reason, the top_values are about 4 times larger.
+    top_values = load_tensor(model_cfg.tensor_dpath / "top_values.pt") / 4
     return top_img_i, top_values
 
 
@@ -154,10 +161,14 @@ def add_highlights(
     patch_h = img_v_sized.height // grid_h
     assert patch_w == patch_h
 
+    patches = np.clip(patches, a_min=0.0, a_max=upper + 1e-9)
+
+    assert upper is not None
+    colors = (COLORMAP(patches / (upper + 1e-9))[:, :3] * 256).astype(np.uint8)
+
     # Create overlay by processing each patch
     overlay = np.zeros((img_v_sized.width, img_v_sized.height, 4), dtype=np.uint8)
-    for idx, val in enumerate(patches):
-        assert upper is not None
+    for idx, (val, color) in enumerate(zip(patches, colors)):
         val = val / (upper + 1e-9)
 
         x = (idx % grid_w) * patch_w
@@ -165,8 +176,8 @@ def add_highlights(
 
         # Create patch overlay
         patch = np.zeros((patch_w, patch_h, 4), dtype=np.uint8)
-        patch[:, :, 0] = int(255 * val)
-        patch[:, :, 3] = int(128 * val)
+        patch[:, :, 0:3] = color
+        patch[:, :, 3] = int(256 * val * opacity)
         overlay[y : y + patch_h, x : x + patch_w, :] = patch
     overlay = pyvips.Image.new_from_array(overlay).copy(interpretation="srgb")
     return img_v_sized.addalpha().composite(overlay, "over")
@@ -204,6 +215,9 @@ class SaeActivation(typing.TypedDict):
 
     activations: list[float]
     """The activation values of this latent across different patches. Each value represents how strongly this latent fired on a particular patch."""
+
+    highlighted_url: str
+    """The image with the colormaps applied."""
 
     examples: list[Example]
     """Top examples for this latent."""
@@ -272,7 +286,8 @@ def bufferinfo_to_base64(bufferinfo: BufferInfo) -> str:
 def make_sae_activation(
     model_cfg: modeling.Config,
     latent: int,
-    acts: list[float],
+    acts: Float[np.ndarray, " n_patches"],
+    img_v: pyvips.Image,
     top_img_i: list[int],
     top_values: Float[Tensor, "top_k n_patches"],
     pool: concurrent.futures.Executor,
@@ -314,8 +329,19 @@ def make_sae_activation(
         )
         examples.append(example)
 
+    print(model_cfg.key, latent, top_values.max(), acts.max())
+
+    # Highlight the original image.
+    img_sized_v = data.to_sized(img_v, RESIZE_SIZE, CROP_SIZE)
+    highlighted_img = add_highlights(img_sized_v, acts, upper=upper)
+    highlighted_url = data.vips_to_base64(highlighted_img)
+
     return SaeActivation(
-        model_cfg=model_cfg, latent=latent, activations=acts, examples=examples
+        model_cfg=model_cfg,
+        latent=latent,
+        activations=acts.tolist(),
+        highlighted_url=highlighted_url,
+        examples=examples,
     )
 
 
@@ -332,12 +358,24 @@ def get_sae_activations(
     Returns:
         A lookup from model name (string) to a list of SaeActivations, one for each latent in the `latents` argument.
     """
+    logger.info("latents: %s", json.dumps(latents))
+
     response = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=16) as pool:
         for model_name, requested_latents in latents.items():
             sae_activations = []
+            if not requested_latents:
+                logger.warning(
+                    "Skipping ViT '%s' with no requested latents.", model_name
+                )
+                response[model_name] = sae_activations
+                continue
+
             model_cfg = MODEL_LOOKUP[model_name]
             vit, vit_transform, scalar, mean = load_vit(model_cfg)
+            if vit is None:
+                logger.warning("Skipping ViT '%s'", model_name)
+                continue
             sae = load_sae(model_cfg)
 
             mean = mean.to(DEVICE)
@@ -360,7 +398,8 @@ def get_sae_activations(
                     make_sae_activation(
                         model_cfg,
                         latent,
-                        acts_SP[latent].cpu().tolist(),
+                        acts_SP[latent].cpu().numpy(),
+                        data.pil_to_vips(img_p),
                         top_img_i[latent].tolist(),
                         top_values[latent],
                         pool,
@@ -431,12 +470,6 @@ class progress:
 
 with gr.Blocks() as demo:
     example_id_text = gr.Text(label="Test Example")
-    input_image = gr.Image(
-        label="Input Image",
-        sources=["upload", "clipboard"],
-        type="pil",
-        interactive=True,
-    )
 
     input_image_base64 = gr.Text(label="Image in Base64")
     input_image_label = gr.Text(label="Image Label")
@@ -452,6 +485,12 @@ with gr.Blocks() as demo:
     latents_json = gr.JSON(label="Latents", value={})
     activations_json = gr.JSON(label="Activations", value={})
 
+    input_image = gr.Image(
+        label="Input Image",
+        sources=["upload", "clipboard"],
+        type="pil",
+        interactive=True,
+    )
     get_sae_activations_btn = gr.Button(value="Get SAE Activations")
     get_sae_activations_btn.click(
         get_sae_activations,

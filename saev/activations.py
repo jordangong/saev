@@ -107,7 +107,10 @@ class RecordedVisionTransformer(torch.nn.Module):
 
     def forward(
         self, batch: Float[Tensor, "batch 3 width height"]
-    ) -> tuple[Float[Tensor, "batch patches dim"], Float[Tensor, "..."]]:
+    ) -> tuple[
+        Float[Tensor, "batch patches dim"],
+        Float[Tensor, "batch n_layers all_patches dim"],
+    ]:
         self.reset()
         result = self.vit(batch)
         return result, self.activations

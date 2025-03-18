@@ -49,8 +49,8 @@ For each `$SPLIT` in "train" and "test":
 
 ```sh
 uv run python -m saev activations \
-  --model-family clip \
-  --model-ckpt ViT-B-16/openai \
+  --vit-family clip \
+  --vit-ckpt ViT-B-16/openai \
   --d-vit 768 \
   --n-patches-per-img 196 \
   --layers -2 -1 \

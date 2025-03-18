@@ -1,4 +1,6 @@
 import base64
+import functools
+import logging
 import typing
 
 import beartype
@@ -8,6 +10,8 @@ import torchvision.datasets
 from PIL import Image
 
 from .. import activations, config
+
+logger = logging.getLogger("app.data")
 
 
 class VipsImageFolder(torchvision.datasets.ImageFolder):
@@ -80,12 +84,16 @@ class VipsImagenet(activations.Imagenet):
         return example
 
 
-datasets = {
-    "inat21__train_mini": VipsImageFolder(
-        root="/research/nfs_su_809/workspace/stevens.994/datasets/inat21/train_mini/"
-    ),
-    "imagenet__train": VipsImagenet(config.ImagenetDataset()),
-}
+@functools.cache
+def get_datasets():
+    datasets = {
+        "inat21__train_mini": VipsImageFolder(
+            root="/research/nfs_su_809/workspace/stevens.994/datasets/inat21/train_mini/"
+        ),
+        "imagenet__train": VipsImagenet(config.ImagenetDataset()),
+    }
+    logger.info("Loaded datasets.")
+    return datasets
 
 
 @beartype.beartype
@@ -96,7 +104,7 @@ def get_img_v_raw(key: str, i: int) -> tuple[pyvips.Image, str]:
     Returns:
         Tuple of pyvips.Image and classname.
     """
-    dataset = datasets[key]
+    dataset = get_datasets()[key]
     sample = dataset[i]
     # iNat21 specific: Remove taxonomy prefix
     label = " ".join(sample["label"].split("_")[1:])

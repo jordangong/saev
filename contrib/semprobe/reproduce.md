@@ -54,8 +54,8 @@ First, record the activations for both CLIP and DINOv2 pre-trained ViTs.
 
 ```sh
 uv run python -m saev activations \
-  --model-family clip \
-  --model-ckpt ViT-B-16/openai \
+  --vit-family clip \
+  --vit-ckpt ViT-B-16/openai \
   --d-vit 768 \
   --n-patches-per-img 196 \
   --dump-to /local/scratch/$USER/cache/saev \
@@ -65,8 +65,8 @@ uv run python -m saev activations \
 
 ```sh
 uv run python -m saev activations \
-  --model-family dinov2 \
-  --model-ckpt dinov2_vitb14_reg \
+  --vit-family dinov2 \
+  --vit-ckpt dinov2_vitb14_reg \
   --d-vit 768 \
   --n-patches-per-img 256 \
   --dump-to /local/scratch/$USER/cache/saev \
