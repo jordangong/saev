@@ -1288,7 +1288,10 @@ class RecordedVisionTransformer(torch.nn.Module):
 
     def forward(
         self, batch: Float[Tensor, &#34;batch 3 width height&#34;]
-    ) -&gt; tuple[Float[Tensor, &#34;batch patches dim&#34;], Float[Tensor, &#34;...&#34;]]:
+    ) -&gt; tuple[
+        Float[Tensor, &#34;batch patches dim&#34;],
+        Float[Tensor, &#34;batch n_layers all_patches dim&#34;],
+    ]:
         self.reset()
         result = self.vit(batch)
         return result, self.activations</code></pre>
@@ -1317,7 +1320,7 @@ def activations(self) -&gt; Float[Tensor, &#34;batch n_layers all_patches dim&#3
 <h3>Methods</h3>
 <dl>
 <dt id="saev.activations.RecordedVisionTransformer.forward"><code class="name flex">
-<span>def <span class="ident">forward</span></span>(<span>self, batch: jaxtyping.Float[Tensor, 'batch 3 width height']) ‑> tuple[jaxtyping.Float[Tensor, 'batch patches dim'], jaxtyping.Float[Tensor, '...']]</span>
+<span>def <span class="ident">forward</span></span>(<span>self, batch: jaxtyping.Float[Tensor, 'batch 3 width height']) ‑> tuple[jaxtyping.Float[Tensor, 'batch patches dim'], jaxtyping.Float[Tensor, 'batch n_layers all_patches dim']]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Define the computation performed at every call.</p>

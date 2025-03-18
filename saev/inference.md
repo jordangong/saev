@@ -82,8 +82,8 @@ x = img_transform(img)
 # Add a batch dimension
 x = x[None, ...]
 _, vit_acts = recorded_vit(x)
-# Re-select the only element in the batch, and ignore the CLS token.
-vit_acts = vit_acts[0, 1:, :]
+# Select the only layer in the batch and ignore the CLS token.
+vit_acts = vit_acts[:, 0, 1:, :]
 
 x_hat, f_x, loss = sae(vit_acts)
 ```
