@@ -1,6 +1,6 @@
 docs: lint
     rm -rf docs/saev docs/contrib
-    uv run python scripts/docs.py --pkg-names saev contrib --fpath docs/llms.txt
+    uv run python scripts/docs.py --in-paths saev contrib --out-fpath docs/llms.txt
     uv run pdoc3 --force --html --output-dir docs --config latex_math=True saev contrib
 
 test: lint

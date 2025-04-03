@@ -125,10 +125,42 @@ It will cache these best activations to disk, then start saving images to visual
 <p><code><a title="saev.interactive.features" href="interactive/features.html">saev.interactive.features</a></code> is a small web application based on <a href="https://marimo.io/">marimo</a> to interactively look at these images.</p>
 <p>You can run it with <code>uv run marimo edit saev/interactive/features.py</code>.</p>
 <h2 id="sweeps">Sweeps</h2>
-<div class="admonition todo">
-<p class="admonition-title">TODO</p>
-<p>Explain how to run grid sweeps.</p>
-</div>
+<h3 id="why-parallel-sweeps">Why Parallel Sweeps</h3>
+<p>SAE training optimizes for a unique bottleneck compared to typical ML workflows: disk I/O rather than GPU computation.
+When training on vision transformer activations, loading the pre-computed activation data from disk is often the slowest part of the process, not the SAE training itself.</p>
+<p>A single set of ImageNet activations for a vision transformer can require terabytes of storage.
+Reading this data repeatedly for each hyperparameter configuration would be extremely inefficient.</p>
+<h3 id="parallelized-training-architecture">Parallelized Training Architecture</h3>
+<p>To address this bottleneck, we implement parallel training that allows multiple SAE configurations to train simultaneously on the same data batch:</p>
+<pre><code class="language-mermaid">flowchart TD
+    A[Pre-computed ViT Activations] --&gt;|Slow I/O| B[Memory Buffer]
+    B --&gt;|Shared Batch| C[SAE Model 1]
+    B --&gt;|Shared Batch| D[SAE Model 2]
+    B --&gt;|Shared Batch| E[SAE Model 3]
+    B --&gt;|Shared Batch| F[...]
+</code></pre>
+<p>This approach:
+- Loads each batch of activations <strong>once</strong> from disk
+- Uses that same batch for multiple SAE models with different hyperparameters
+- Amortizes the slow I/O cost across all models in the sweep</p>
+<h3 id="running-a-sweep">Running a Sweep</h3>
+<p>The <code>train</code> command accepts a <code>--sweep</code> parameter that points to a TOML file defining the hyperparameter grid:</p>
+<pre><code class="language-bash">uv run python -m saev train --sweep configs/my_sweep.toml
+</code></pre>
+<p>Here's an example sweep configuration file:</p>
+<pre><code class="language-toml">[sae]
+sparsity_coeff = [1e-4, 2e-4, 3e-4]
+d_vit = 768
+exp_factor = [8, 16]
+
+[data]
+scale_mean = true
+</code></pre>
+<p>This would train 6 models (3 sparsity coefficients × 2 expansion factors), each sharing the same data loading operation.</p>
+<h3 id="limitations">Limitations</h3>
+<p>Not all parameters can be swept in parallel.
+Parameters that affect data loading (like <code>batch_size</code> or dataset configuration) will cause the sweep to split into separate parallel groups.
+The system automatically handles this division to maximize efficiency.</p>
 <h2 id="training-metrics-and-visualizations">Training Metrics and Visualizations</h2>
 <div class="admonition todo">
 <p class="admonition-title">TODO</p>
@@ -328,7 +360,13 @@ These tests are quite slow</p></div>
 <li><a href="#record-vit-activations-to-disk">Record ViT Activations to Disk</a></li>
 <li><a href="#train-saes-on-activations">Train SAEs on Activations</a></li>
 <li><a href="#visualize-the-learned-features">Visualize the Learned Features</a></li>
-<li><a href="#sweeps">Sweeps</a></li>
+<li><a href="#sweeps">Sweeps</a><ul>
+<li><a href="#why-parallel-sweeps">Why Parallel Sweeps</a></li>
+<li><a href="#parallelized-training-architecture">Parallelized Training Architecture</a></li>
+<li><a href="#running-a-sweep">Running a Sweep</a></li>
+<li><a href="#limitations">Limitations</a></li>
+</ul>
+</li>
 <li><a href="#training-metrics-and-visualizations">Training Metrics and Visualizations</a></li>
 </ul>
 </li>

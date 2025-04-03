@@ -125,7 +125,59 @@ You can run it with `uv run marimo edit saev/interactive/features.py`.
 
 ## Sweeps
 
-.. todo:: Explain how to run grid sweeps.
+### Why Parallel Sweeps
+
+SAE training optimizes for a unique bottleneck compared to typical ML workflows: disk I/O rather than GPU computation.
+When training on vision transformer activations, loading the pre-computed activation data from disk is often the slowest part of the process, not the SAE training itself.
+
+A single set of ImageNet activations for a vision transformer can require terabytes of storage.
+Reading this data repeatedly for each hyperparameter configuration would be extremely inefficient.
+
+### Parallelized Training Architecture
+
+To address this bottleneck, we implement parallel training that allows multiple SAE configurations to train simultaneously on the same data batch:
+
+```mermaid
+flowchart TD
+    A[Pre-computed ViT Activations] -->|Slow I/O| B[Memory Buffer]
+    B -->|Shared Batch| C[SAE Model 1]
+    B -->|Shared Batch| D[SAE Model 2]
+    B -->|Shared Batch| E[SAE Model 3]
+    B -->|Shared Batch| F[...]
+```
+
+This approach:
+- Loads each batch of activations **once** from disk
+- Uses that same batch for multiple SAE models with different hyperparameters
+- Amortizes the slow I/O cost across all models in the sweep
+
+### Running a Sweep
+
+The `train` command accepts a `--sweep` parameter that points to a TOML file defining the hyperparameter grid:
+
+```bash
+uv run python -m saev train --sweep configs/my_sweep.toml
+```
+
+Here's an example sweep configuration file:
+
+```toml
+[sae]
+sparsity_coeff = [1e-4, 2e-4, 3e-4]
+d_vit = 768
+exp_factor = [8, 16]
+
+[data]
+scale_mean = true
+```
+
+This would train 6 models (3 sparsity coefficients × 2 expansion factors), each sharing the same data loading operation.
+
+### Limitations
+
+Not all parameters can be swept in parallel.
+Parameters that affect data loading (like `batch_size` or dataset configuration) will cause the sweep to split into separate parallel groups.
+The system automatically handles this division to maximize efficiency.
 
 ## Training Metrics and Visualizations
 
