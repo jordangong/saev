@@ -137,14 +137,17 @@ Reading this data repeatedly for each hyperparameter configuration would be extr
 
 To address this bottleneck, we implement parallel training that allows multiple SAE configurations to train simultaneously on the same data batch:
 
-```mermaid
+<pre class="mermaid">
 flowchart TD
     A[Pre-computed ViT Activations] -->|Slow I/O| B[Memory Buffer]
     B -->|Shared Batch| C[SAE Model 1]
     B -->|Shared Batch| D[SAE Model 2]
     B -->|Shared Batch| E[SAE Model 3]
     B -->|Shared Batch| F[...]
-```
+</pre>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+</script>
 
 This approach:
 - Loads each batch of activations **once** from disk
