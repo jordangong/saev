@@ -8,7 +8,6 @@ wandb/
 artifacts/
 checkpoints/
 logs/
-.hypothesis/
 .aider*
 .env
 .DS_Store
@@ -16,8 +15,11 @@ tmp/
 elm-stuff/
 data/
 
-# Coverage
+# Testing
 .coverage
 .coverage.*
-coverage.xml
-htmlcov/
+coverage.json
+
+.hypothesis/
+
+pytest.json

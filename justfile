@@ -4,8 +4,8 @@ docs: lint
     uv run pdoc3 --force --html --output-dir docs --config latex_math=True saev contrib
 
 test: lint
-    uv run pytest --cov saev --cov-report term --cov-report xml -n auto saev
-    uv run scripts/coverage.py
+    uv run pytest --cov saev --cov-report term --cov-report json --json-report --json-report-file pytest.json -n auto saev || true
+    uv run scripts/regressions.py
 
 lint: fmt
     uv run ruff check --fix .
