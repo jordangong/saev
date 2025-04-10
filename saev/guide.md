@@ -103,6 +103,17 @@ Then, we pick out the images those patches correspond to and create a heatmap ba
 `saev.visuals` records these maximally activating images for us.
 You can see all the options with `uv run python -m saev visuals --help`.
 
+The most important configuration options:
+
+1. The SAE checkpoint that you want to use (`--ckpt`).
+2. The ViT activations that you want to use (`--data.*` options, should be roughly the same as the options you used to train your SAE, like the same layer, same `--data.patches`).
+3. The images that produced the ViT activations that you want to use (`images` and `--images.*` options, should be the same as what you used to generate your ViT activtions).
+4. Some filtering options on which SAE latents to include (`--log-freq-range`, `--log-value-range`, `--include-latents`, `--n-latents`).
+
+Then, the script runs SAE inference on all of the ViT activations, calculates the images with maximal activation for each SAE feature, then retrieves the images from the original image dataset and highlights them for browsing later on.
+
+.. note:: Because of limitations in the SAE training process, not all SAE latents (dimensions of \(f\)) are equally interesting. Some latents are dead, some are *dense*, some only fire on two images, etc. Typically, you want neurons that fire very strongly (high value) and fairly infrequently (low frequency). You might be interested in particular, fixed latents (`--include-latents`). **I recommend using `saev.interactive.metrics` to figure out good thresholds.
+
 So you might run:
 
 ```sh
@@ -124,6 +135,8 @@ You can run it with `uv run marimo edit saev/interactive/features.py`.
 
 
 ## Sweeps
+
+> tl;dr: basically the slow part of training SAEs is loading vit activations from disk, and since SAEs are pretty small compared to other models, you can train a bunch of different SAEs in parallel on the same data using a big GPU. That way you can sweep learning rate, lambda, etc. all on one GPU.
 
 ### Why Parallel Sweeps
 
@@ -150,6 +163,7 @@ flowchart TD
 </script>
 
 This approach:
+
 - Loads each batch of activations **once** from disk
 - Uses that same batch for multiple SAE models with different hyperparameters
 - Amortizes the slow I/O cost across all models in the sweep

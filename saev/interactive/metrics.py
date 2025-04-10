@@ -1,10 +1,7 @@
 import marimo
 
 __generated_with = "0.9.32"
-app = marimo.App(
-    width="medium",
-    css_file="/home/stevens.994/.config/marimo/custom.css",
-)
+app = marimo.App()
 
 
 @app.cell

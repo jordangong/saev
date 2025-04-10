@@ -111,6 +111,17 @@ Then, we pick out the images those patches correspond to and create a heatmap ba
 </div>
 <p><code><a title="saev.visuals" href="visuals.html">saev.visuals</a></code> records these maximally activating images for us.
 You can see all the options with <code>uv run python -m saev visuals --help</code>.</p>
+<p>The most important configuration options:</p>
+<ol>
+<li>The SAE checkpoint that you want to use (<code>--ckpt</code>).</li>
+<li>The ViT activations that you want to use (<code>--data.*</code> options, should be roughly the same as the options you used to train your SAE, like the same layer, same <code>--data.patches</code>).</li>
+<li>The images that produced the ViT activations that you want to use (<code>images</code> and <code>--images.*</code> options, should be the same as what you used to generate your ViT activtions).</li>
+<li>Some filtering options on which SAE latents to include (<code>--log-freq-range</code>, <code>--log-value-range</code>, <code>--include-latents</code>, <code>--n-latents</code>).</li>
+</ol>
+<p>Then, the script runs SAE inference on all of the ViT activations, calculates the images with maximal activation for each SAE feature, then retrieves the images from the original image dataset and highlights them for browsing later on.</p>
+<div class="admonition note">
+<p class="admonition-title">Note:&ensp;Because of limitations in the SAE training process, not all SAE latents (dimensions of <span><span class="MathJax_Preview">f</span><script type="math/tex">f</script></span>) are equally interesting. Some latents are dead, some are <em>dense</em>, some only fire on two images, etc. Typically, you want neurons that fire very strongly (high value) and fairly infrequently (low frequency). You might be interested in particular, fixed latents (<code>--include-latents</code>). **I recommend using <code><a title="saev.interactive.metrics" href="interactive/metrics.html">saev.interactive.metrics</a></code> to figure out good thresholds.</p>
+</div>
 <p>So you might run:</p>
 <pre><code class="language-sh">uv run python -m saev visuals \
   --ckpt checkpoints/abcdefg/sae.pt \
@@ -125,6 +136,9 @@ It will cache these best activations to disk, then start saving images to visual
 <p><code><a title="saev.interactive.features" href="interactive/features.html">saev.interactive.features</a></code> is a small web application based on <a href="https://marimo.io/">marimo</a> to interactively look at these images.</p>
 <p>You can run it with <code>uv run marimo edit saev/interactive/features.py</code>.</p>
 <h2 id="sweeps">Sweeps</h2>
+<blockquote>
+<p>tl;dr: basically the slow part of training SAEs is loading vit activations from disk, and since SAEs are pretty small compared to other models, you can train a bunch of different SAEs in parallel on the same data using a big GPU. That way you can sweep learning rate, lambda, etc. all on one GPU.</p>
+</blockquote>
 <h3 id="why-parallel-sweeps">Why Parallel Sweeps</h3>
 <p>SAE training optimizes for a unique bottleneck compared to typical ML workflows: disk I/O rather than GPU computation.
 When training on vision transformer activations, loading the pre-computed activation data from disk is often the slowest part of the process, not the SAE training itself.</p>
@@ -143,10 +157,12 @@ flowchart TD
 <script type="module">
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
 </script>
-<p>This approach:
-- Loads each batch of activations <strong>once</strong> from disk
-- Uses that same batch for multiple SAE models with different hyperparameters
-- Amortizes the slow I/O cost across all models in the sweep</p>
+<p>This approach:</p>
+<ul>
+<li>Loads each batch of activations <strong>once</strong> from disk</li>
+<li>Uses that same batch for multiple SAE models with different hyperparameters</li>
+<li>Amortizes the slow I/O cost across all models in the sweep</li>
+</ul>
 <h3 id="running-a-sweep">Running a Sweep</h3>
 <p>The <code>train</code> command accepts a <code>--sweep</code> parameter that points to a TOML file defining the hyperparameter grid:</p>
 <pre><code class="language-bash">uv run python -m saev train --sweep configs/my_sweep.toml

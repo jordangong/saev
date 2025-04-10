@@ -2,7 +2,7 @@
 
 ![Coverage](docs/coverage.svg)
 
-Implementation of sparse autoencoders (SAEs) for vision transformers (ViTs) in PyTorch.
+Sparse autoencoders (SAEs) for vision transformers (ViTs), implemented in PyTorch.
 
 This is the codebase used for our preprint "Sparse Autoencoders for Scientifically Rigorous Interpretation of Vision Models"
 
@@ -30,12 +30,21 @@ saev will likely work with pure pip, conda, etc. but I will not formally support
 
 To install, clone this repository (maybe fork it first if you want).
 
-In the project root directory, run `uv run python -m saev --help`.
-The first invocation should create a virtual environment and show a help message.
+Clone this repository (or fork it), then from the root directory:
+
+```bash
+uv run python -m saev --help
+```
+
+This will create a virtual environment and display the CLI help.
 
 ## Using `saev`
 
 See the [docs](https://osu-nlp-group.github.io/SAE-V/saev) for an overview.
 
-I recommend using the [llms.txt](https://osu-nlp-group.github.io/SAE-V/llms.txt) file as a way to use any LLM provider to ask questions.
-For example, you can run `curl https://osu-nlp-group.github.io/SAE-V/llms.txt | pbcopy` on macOS to copy the text, then paste it into [https://claude.ai](https://claude.ai) and ask any question you have.
+You can ask questions about this repo using the `llms.txt` file.
+
+Example (macOS):
+
+`curl https://osu-nlp-group.github.io/SAE-V/llms.txt | pbcopy`
+Paste into [Claude](https://claude.ai) or any LLM interface of your choice.
