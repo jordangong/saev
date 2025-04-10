@@ -1,17 +1,17 @@
 docs: lint
     rm -rf docs/saev docs/contrib
-    uv run python scripts/docs.py --in-paths saev contrib --out-fpath docs/llms.txt
+    uv run scripts/docs.py --in-paths saev contrib --out-fpath docs/llms.txt
     uv run pdoc3 --force --html --output-dir docs --config latex_math=True saev contrib
 
 test: lint
-    uv run pytest --cov saev -n auto saev
+    uv run pytest --cov saev --cov-report term --cov-report xml -n auto saev
+    uv run scripts/coverage.py
 
 lint: fmt
-    fd -e py | xargs ruff check
+    uv run ruff check --fix .
 
 fmt:
-    fd -e py | xargs isort
-    fd -e py | xargs ruff format --preview
+    uv run ruff format --preview .
     fd -e elm | xargs elm-format --yes
 
 clean:

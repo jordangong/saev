@@ -1,6 +1,9 @@
+# Python
 __pycache__/
 .ipynb_checkpoints/
 .venv/
+*.egg-info/
+
 wandb/
 artifacts/
 checkpoints/
@@ -10,7 +13,11 @@ logs/
 .env
 .DS_Store
 tmp/
-.coverage
-saev.egg-info/
 elm-stuff/
 data/
+
+# Coverage
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/

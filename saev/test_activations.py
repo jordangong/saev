@@ -16,12 +16,13 @@ def test_dataloader_batches():
     cfg = config.Activations(
         vit_ckpt="ViT-B-32/openai",
         d_vit=768,
-        layers=[-2, -1],
+        vit_layers=[-2, -1],
         n_patches_per_img=49,
         vit_batch_size=8,
     )
-    vit = activations.make_vit(cfg)
-    dataloader = activations.get_dataloader(cfg, vit.make_img_transform())
+    dataloader = activations.get_dataloader(
+        cfg, img_transform=activations.make_img_transform(cfg.vit_family, cfg.vit_ckpt)
+    )
     batch = next(iter(dataloader))
 
     assert isinstance(batch, dict)
@@ -36,17 +37,20 @@ def test_dataloader_batches():
 def test_shard_writer_and_dataset_e2e():
     with tempfile.TemporaryDirectory() as tmpdir:
         cfg = config.Activations(
-            model_org="timm",
+            vit_family="timm",
             vit_ckpt="hf_hub:timm/test_vit3.r160_in1k",
             d_vit=96,
             n_patches_per_img=100,
-            layers=[-2, -1],
+            vit_layers=[-2, -1],
             vit_batch_size=8,
             n_workers=8,
             dump_to=tmpdir,
         )
-        vit = activations.make_vit(cfg)
-        dataloader = activations.get_dataloader(cfg, vit.make_img_transform())
+        vit = activations.make_vit(cfg.vit_family, cfg.vit_ckpt)
+        dataloader = activations.get_dataloader(
+            cfg,
+            img_transform=activations.make_img_transform(cfg.vit_family, cfg.vit_ckpt),
+        )
         writer = activations.ShardWriter(cfg)
         dataset = activations.Dataset(
             config.DataLoad(
