@@ -1,5 +1,7 @@
 # saev - Sparse Auto-Encoders for Vision
 
+![Coverage](docs/coverage.svg)
+
 Implementation of sparse autoencoders (SAEs) for vision transformers (ViTs) in PyTorch.
 
 This is the codebase used for our preprint "Sparse Autoencoders for Scientifically Rigorous Interpretation of Vision Models"

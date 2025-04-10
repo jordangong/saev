@@ -5,6 +5,7 @@ docs: lint
 
 test: lint
     uv run pytest --cov saev --cov-report term --cov-report json --json-report --json-report-file pytest.json -n auto saev || true
+    uv run coverage-badge -o docs/coverage.svg -f
     uv run scripts/regressions.py
 
 lint: fmt
@@ -15,6 +16,11 @@ fmt:
     fd -e elm | xargs elm-format --yes
 
 clean:
+    rm -f .coverage
+    rm -f docs/coverage.svg
+    rm -f coverage.json
+    rm -f pytest.json
+    rm -rf .hypothesis
     uv run python -c 'import datasets; print(datasets.load_dataset("ILSVRC/imagenet-1k").cleanup_cache_files())'
 
 build-semseg: fmt
