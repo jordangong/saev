@@ -112,7 +112,7 @@ The most important configuration options:
 
 Then, the script runs SAE inference on all of the ViT activations, calculates the images with maximal activation for each SAE feature, then retrieves the images from the original image dataset and highlights them for browsing later on.
 
-.. note:: Because of limitations in the SAE training process, not all SAE latents (dimensions of \(f\)) are equally interesting. Some latents are dead, some are *dense*, some only fire on two images, etc. Typically, you want neurons that fire very strongly (high value) and fairly infrequently (low frequency). You might be interested in particular, fixed latents (`--include-latents`). **I recommend using `saev.interactive.metrics` to figure out good thresholds.
+.. note:: Because of limitations in the SAE training process, not all SAE latents (dimensions of \(f\)) are equally interesting. Some latents are dead, some are *dense*, some only fire on two images, etc. Typically, you want neurons that fire very strongly (high value) and fairly infrequently (low frequency). You might be interested in particular, fixed latents (`--include-latents`). **I recommend using `saev.interactive.metrics` to figure out good thresholds.**
 
 So you might run:
 
@@ -198,4 +198,25 @@ The system automatically handles this division to maximize efficiency.
 
 ## Training Metrics and Visualizations
 
+When you train a sweep of SAEs, you probably want to understand which checkpoint is best.
+`saev` provides some tools to help with that.
+
+First, we offer a tool to look at some basic summary statistics of all your trained checkpoints.
+
+`saev.interactive.metrics` is a [marimo](https://marimo.io/) notebook (similar to Jupyter, but more interactive) for making L0 vs MSE plots by reading runs off of WandB.
+
+However, there are some pieces of code that need to be changed for you to use it.
+
 .. todo:: Explain how to use the `saev.interactive.metrics` notebook.
+
+* Need to change your wandb username from samuelstevens to USERNAME from wandb
+* Tag filter
+* Need to run the notebook on the same machine as the original ViT shards and the shards need to be there.
+* Think of better ways to do model and data keys
+* Look at examples
+* run visuals before features
+
+How to run visuals faster?
+
+explain how these features are visualized
+

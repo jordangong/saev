@@ -7334,7 +7334,7 @@ var $author$project$Classification$urlParser = $author$project$Classification$is
 	$author$project$Classification$QueryParams,
 	A2(
 		$elm$url$Url$Parser$slash,
-		$elm$url$Url$Parser$s('SAE-V'),
+		$elm$url$Url$Parser$s('saev'),
 		A2(
 			$elm$url$Url$Parser$slash,
 			$elm$url$Url$Parser$s('demos'),
@@ -8416,7 +8416,7 @@ var $author$project$Classification$explainGradioError = function (err) {
 		$elm$html$Html$a,
 		_List_fromArray(
 			[
-				$elm$html$Html$Attributes$href('https://github.com/OSU-NLP-Group/SAE-V/issues/new'),
+				$elm$html$Html$Attributes$href('https://github.com/OSU-NLP-Group/saev/issues/new'),
 				$elm$html$Html$Attributes$class('text-sky-500 hover:underline')
 			]),
 		_List_fromArray(
@@ -8905,11 +8905,11 @@ var $author$project$Classification$guidedExamples = _List_fromArray(
 						])),
 					$elm$html$Html$text(' to -11.')
 				])),
-		v: '/SAE-V/assets/contrib/classification/680-wing-highlighted.webp',
+		v: '/saev/assets/contrib/classification/680-wing-highlighted.webp',
 		I: $elm$html$Html$text(' For example, this blue jay has a distinctive blue wing.'),
 		r: 680,
 		J: $elm$html$Html$text(' For example, if you suppressed the blue wing, the ViT likely predicted Clark Nutcracker, a similar bird without any blue coloration.'),
-		o: '/SAE-V/assets/contrib/classification/680.webp',
+		o: '/saev/assets/contrib/classification/680.webp',
 		N: A2(
 			$elm$html$Html$span,
 			_List_Nil,
@@ -8948,11 +8948,11 @@ var $author$project$Classification$guidedExamples = _List_fromArray(
 						])),
 					$elm$html$Html$text(' to -14.')
 				])),
-		v: '/SAE-V/assets/contrib/classification/972-breast-highlighted.webp',
+		v: '/saev/assets/contrib/classification/972-breast-highlighted.webp',
 		I: $elm$html$Html$text(' For example, this brown creeper has a notably white breast and underside.'),
 		r: 972,
 		J: $elm$html$Html$text(' For example, if you suppressed the white breast, the ViT likely predicted Song Sparrow, a similar bird with a speckled, rather than white, breast.'),
-		o: '/SAE-V/assets/contrib/classification/972.webp',
+		o: '/saev/assets/contrib/classification/972.webp',
 		N: A2(
 			$elm$html$Html$span,
 			_List_Nil,
@@ -8991,11 +8991,11 @@ var $author$project$Classification$guidedExamples = _List_fromArray(
 						])),
 					$elm$html$Html$text(' to -12.')
 				])),
-		v: '/SAE-V/assets/contrib/classification/1129-necklace-highlighted.webp',
+		v: '/saev/assets/contrib/classification/1129-necklace-highlighted.webp',
 		I: $elm$html$Html$text(' For example, this warbler has a distinctive broken black necklace.'),
 		r: 1129,
 		J: $elm$html$Html$text(' If you suppressed the entire necklace, the ViT likely predicted Wilson Warbler, a similar bird with a plain yellow breast without any necklace.'),
-		o: '/SAE-V/assets/contrib/classification/1129.webp',
+		o: '/saev/assets/contrib/classification/1129.webp',
 		N: A2(
 			$elm$html$Html$span,
 			_List_Nil,
@@ -9034,7 +9034,7 @@ var $author$project$Classification$guidedExamples = _List_fromArray(
 						])),
 					$elm$html$Html$text(' to -8.')
 				])),
-		v: '/SAE-V/assets/contrib/classification/5099-chest-highlighted.webp',
+		v: '/saev/assets/contrib/classification/5099-chest-highlighted.webp',
 		I: $elm$html$Html$text(' For example, this kingbird has a distinctive yellow chest.'),
 		r: 5099,
 		J: A2(
@@ -9055,7 +9055,7 @@ var $author$project$Classification$guidedExamples = _List_fromArray(
 						])),
 					$elm$html$Html$text(' yellow chest, the ViT likely predicted Gray Kingbird, a similar kingbird without any yellow coloration.')
 				])),
-		o: '/SAE-V/assets/contrib/classification/5099.webp',
+		o: '/saev/assets/contrib/classification/5099.webp',
 		N: A2(
 			$elm$html$Html$span,
 			_List_Nil,

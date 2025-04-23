@@ -1,5 +1,5 @@
-repo_url = "https://github.com/OSU-NLP-Group/SAE-V"
-docs_url = "https://osu-nlp-group.github.io/SAE-V"
+repo_url = "https://github.com/OSU-NLP-Group/saev"
+docs_url = "https://osu-nlp-group.github.io/saev"
 
 
 def main(

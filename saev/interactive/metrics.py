@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.9.32"
-app = marimo.App()
+app = marimo.App(width="medium")
 
 
 @app.cell
@@ -24,15 +24,45 @@ def __():
 
 @app.cell
 def __(mo):
+    mo.md(
+        """
+        # SAE Metrics Explorer
+
+        This notebook helps you analyze and compare SAE training runs from WandB.
+
+        ## Setup Instructions
+
+        1. Edit the configuration cell at the top to set your WandB username and project
+        2. Make sure you have access to the original ViT activation shards
+        3. Use the filters to narrow down which models to compare
+
+        ## Troubleshooting
+
+        - **Missing data error**: This notebook needs access to the original ViT activation shards
+        - **No runs found**: Check your WandB username, project name, and tag filter
+        """
+    )
+    return
+
+
+@app.cell
+def __():
+    WANDB_USERNAME = "samuelstevens"
+    WANDB_PROJECT = "saev"
+    return WANDB_PROJECT, WANDB_USERNAME
+
+
+@app.cell
+def __(mo):
     tag_input = mo.ui.text(value="classification-v1.0", label="Sweep Tag:")
     return (tag_input,)
 
 
 @app.cell
-def __(mo, tag_input):
+def __(WANDB_PROJECT, WANDB_USERNAME, mo, tag_input):
     mo.vstack([
         mo.md(
-            "Look at [WandB](https://wandb.ai/samuelstevens/saev/table) to pick your tag."
+            f"Look at [{WANDB_USERNAME}/{WANDB_PROJECT} on WandB](https://wandb.ai/{WANDB_USERNAME}/{WANDB_PROJECT}/table) to pick your tag."
         ),
         tag_input,
     ])
@@ -40,13 +70,10 @@ def __(mo, tag_input):
 
 
 @app.cell
-def __(alt, df, mo, pl):
+def __(alt, df, mo):
     chart = mo.ui.altair_chart(
         alt.Chart(
-            df.filter(
-                pl.col("config/data/shard_root")
-                == "/local/scratch/stevens.994/cache/saev/724b1b7be995ef7212d64640fec2885737a706a33b8e5a18f7f323223bd43af1/"
-            ).select(
+            df.select(
                 "summary/eval/l0",
                 "summary/losses/mse",
                 "id",
@@ -235,9 +262,38 @@ def __(
     tag_input,
     wandb,
 ):
+    class MetadataAccessError(Exception):
+        """Exception raised when metadata cannot be accessed or parsed."""
+
+        pass
+
+    @beartype.beartype
+    def find_metadata(shard_root: str):
+        if not os.path.exists(shard_root):
+            msg = f"""
+    ERROR: Shard root '{shard_root}' not found. You need to either:
+
+    1. Run this notebook on the same machine where the shards are located.
+    2. Copy the shards to this machine at path: {shard_root}
+    3. Update the filtering criteria to only show checkpoints with available data""".strip()
+            raise MetadataAccessError(msg)
+
+        metadata_path = os.path.join(shard_root, "metadata.json")
+        if not os.path.exists(metadata_path):
+            raise MetadataAccessError("Missing metadata.json file")
+
+        try:
+            with open(metadata_path) as fd:
+                return json.load(fd)
+        except json.JSONDecodeError:
+            raise MetadataAccessError("Malformed metadata.json file")
+
     @beartype.beartype
     def make_df(tag: str):
-        runs = wandb.Api().runs(path="samuelstevens/saev", filters={"config.tag": tag})
+        filters = {}
+        if tag:
+            filters["config.tag"] = tag
+        runs = wandb.Api().runs(path="samuelstevens/saev", filters=filters)
 
         rows = []
         for run in mo.status.progress_bar(
@@ -280,13 +336,11 @@ def __(
             })
 
             row.update(**{f"config/{key}": value for key, value in run.config.items()})
+
             try:
-                with open(
-                    os.path.join(row["config/data/shard_root"], "metadata.json")
-                ) as fd:
-                    metadata = json.load(fd)
-            except FileNotFoundError:
-                print(f"Bad run {run.id}: missing metadata.json")
+                metadata = find_metadata(row["config/data/shard_root"])
+            except MetadataAccessError as err:
+                print(f"Bad run {run.id}: {err}")
                 continue
 
             row["model_key"] = get_model_key(metadata)
@@ -311,23 +365,30 @@ def __(
         return df
 
     df = make_df(tag_input.value)
-    return df, make_df
+    return MetadataAccessError, df, find_metadata, make_df
 
 
 @app.cell
 def __(beartype):
     @beartype.beartype
-    def get_model_key(metadata: dict[str, object]) -> str | None:
-        family, ckpt = metadata["vit_family"], metadata["vit_ckpt"]
+    def get_model_key(metadata: dict[str, object]) -> str:
+        family = next(
+            metadata[key] for key in ("vit_family", "model_family") if key in metadata
+        )
+
+        ckpt = next(
+            metadata[key] for key in ("vit_ckpt", "model_ckpt") if key in metadata
+        )
+
         if family == "dinov2" and ckpt == "dinov2_vitb14_reg":
-            return "DINOv2 ViT-B/14"
+            return "DINOv2 ViT-B/14 (reg)"
         if family == "clip" and ckpt == "ViT-B-16/openai":
             return "CLIP ViT-B/16"
         if family == "clip" and ckpt == "hf-hub:imageomics/bioclip":
             return "BioCLIP ViT-B/16"
 
         print(f"Unknown model: {(family, ckpt)}")
-        return None
+        return ckpt
 
     @beartype.beartype
     def get_data_key(metadata: dict[str, object]) -> str | None:

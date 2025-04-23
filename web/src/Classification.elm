@@ -520,7 +520,7 @@ urlParser =
             |> Url.Parser.map QueryParams
 
     else
-        Url.Parser.s "SAE-V"
+        Url.Parser.s "saev"
             </> Url.Parser.s "demos"
             </> Url.Parser.s "classification"
             <?> Url.Parser.Query.int "example"
@@ -536,7 +536,7 @@ explainGradioError err =
     let
         githubLink =
             Html.a
-                [ Html.Attributes.href "https://github.com/OSU-NLP-Group/SAE-V/issues/new"
+                [ Html.Attributes.href "https://github.com/OSU-NLP-Group/saev/issues/new"
                 , class "text-sky-500 hover:underline"
                 ]
                 [ Html.text "GitHub" ]
@@ -1298,8 +1298,8 @@ type alias GuidedExample =
 guidedExamples : List GuidedExample
 guidedExamples =
     [ { index = 680
-      , original = "/SAE-V/assets/contrib/classification/680.webp"
-      , highlighted = "/SAE-V/assets/contrib/classification/680-wing-highlighted.webp"
+      , original = "/saev/assets/contrib/classification/680.webp"
+      , highlighted = "/saev/assets/contrib/classification/680-wing-highlighted.webp"
       , hypothesis = Html.text " For example, this blue jay has a distinctive blue wing."
       , trait =
             Html.span
@@ -1318,8 +1318,8 @@ guidedExamples =
       , insight = Html.text " For example, if you suppressed the blue wing, the ViT likely predicted Clark Nutcracker, a similar bird without any blue coloration."
       }
     , { index = 972
-      , original = "/SAE-V/assets/contrib/classification/972.webp"
-      , highlighted = "/SAE-V/assets/contrib/classification/972-breast-highlighted.webp"
+      , original = "/saev/assets/contrib/classification/972.webp"
+      , highlighted = "/saev/assets/contrib/classification/972-breast-highlighted.webp"
       , hypothesis = Html.text " For example, this brown creeper has a notably white breast and underside."
       , trait =
             Html.span
@@ -1338,8 +1338,8 @@ guidedExamples =
       , insight = Html.text " For example, if you suppressed the white breast, the ViT likely predicted Song Sparrow, a similar bird with a speckled, rather than white, breast."
       }
     , { index = 1129
-      , original = "/SAE-V/assets/contrib/classification/1129.webp"
-      , highlighted = "/SAE-V/assets/contrib/classification/1129-necklace-highlighted.webp"
+      , original = "/saev/assets/contrib/classification/1129.webp"
+      , highlighted = "/saev/assets/contrib/classification/1129-necklace-highlighted.webp"
       , hypothesis = Html.text " For example, this warbler has a distinctive broken black necklace."
       , trait =
             Html.span
@@ -1359,16 +1359,16 @@ guidedExamples =
       }
 
     -- , { index = 4139
-    --   , original = "/SAE-V/assets/contrib/classification/4139.webp"
-    --   , highlighted = "/SAE-V/assets/contrib/classification/4139-chest-highlighted.webp"
+    --   , original = "/saev/assets/contrib/classification/4139.webp"
+    --   , highlighted = "/saev/assets/contrib/classification/4139-chest-highlighted.webp"
     --   , hypothesis = Html.text " For example, this purple finch has a distinctive pink and red coloration on its chest and head."
     --   , trait = Html.text ""
     --   , action = Html.text ""
     --   , insight = Html.text ""
     --   }
     , { index = 5099
-      , original = "/SAE-V/assets/contrib/classification/5099.webp"
-      , highlighted = "/SAE-V/assets/contrib/classification/5099-chest-highlighted.webp"
+      , original = "/saev/assets/contrib/classification/5099.webp"
+      , highlighted = "/saev/assets/contrib/classification/5099-chest-highlighted.webp"
       , hypothesis = Html.text " For example, this kingbird has a distinctive yellow chest."
       , trait =
             Html.span

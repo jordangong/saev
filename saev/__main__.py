@@ -78,6 +78,12 @@ def train(
 
 @beartype.beartype
 def visuals(cfg: typing.Annotated[config.Visuals, tyro.conf.arg(name="")]):
+    """
+    Save maximally activating images for each SAE latent.
+
+    Args:
+        cfg: Config
+    """
     from . import visuals
 
     visuals.main(cfg)

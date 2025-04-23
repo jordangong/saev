@@ -5258,6 +5258,201 @@ var _Parser_findSubString = F5(function(smallString, offset, row, col, bigString
 
 	return _Utils_Tuple3(newOffset, row, col);
 });
+
+
+function _Url_percentEncode(string)
+{
+	return encodeURIComponent(string);
+}
+
+function _Url_percentDecode(string)
+{
+	try
+	{
+		return $elm$core$Maybe$Just(decodeURIComponent(string));
+	}
+	catch (e)
+	{
+		return $elm$core$Maybe$Nothing;
+	}
+}
+
+
+// DECODER
+
+var _File_decoder = _Json_decodePrim(function(value) {
+	// NOTE: checks if `File` exists in case this is run on node
+	return (typeof File !== 'undefined' && value instanceof File)
+		? $elm$core$Result$Ok(value)
+		: _Json_expecting('a FILE', value);
+});
+
+
+// METADATA
+
+function _File_name(file) { return file.name; }
+function _File_mime(file) { return file.type; }
+function _File_size(file) { return file.size; }
+
+function _File_lastModified(file)
+{
+	return $elm$time$Time$millisToPosix(file.lastModified);
+}
+
+
+// DOWNLOAD
+
+var _File_downloadNode;
+
+function _File_getDownloadNode()
+{
+	return _File_downloadNode || (_File_downloadNode = document.createElement('a'));
+}
+
+var _File_download = F3(function(name, mime, content)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var blob = new Blob([content], {type: mime});
+
+		// for IE10+
+		if (navigator.msSaveOrOpenBlob)
+		{
+			navigator.msSaveOrOpenBlob(blob, name);
+			return;
+		}
+
+		// for HTML5
+		var node = _File_getDownloadNode();
+		var objectUrl = URL.createObjectURL(blob);
+		node.href = objectUrl;
+		node.download = name;
+		_File_click(node);
+		URL.revokeObjectURL(objectUrl);
+	});
+});
+
+function _File_downloadUrl(href)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var node = _File_getDownloadNode();
+		node.href = href;
+		node.download = '';
+		node.origin === location.origin || (node.target = '_blank');
+		_File_click(node);
+	});
+}
+
+
+// IE COMPATIBILITY
+
+function _File_makeBytesSafeForInternetExplorer(bytes)
+{
+	// only needed by IE10 and IE11 to fix https://github.com/elm/file/issues/10
+	// all other browsers can just run `new Blob([bytes])` directly with no problem
+	//
+	return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+}
+
+function _File_click(node)
+{
+	// only needed by IE10 and IE11 to fix https://github.com/elm/file/issues/11
+	// all other browsers have MouseEvent and do not need this conditional stuff
+	//
+	if (typeof MouseEvent === 'function')
+	{
+		node.dispatchEvent(new MouseEvent('click'));
+	}
+	else
+	{
+		var event = document.createEvent('MouseEvents');
+		event.initMouseEvent('click', true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+		document.body.appendChild(node);
+		node.dispatchEvent(event);
+		document.body.removeChild(node);
+	}
+}
+
+
+// UPLOAD
+
+var _File_node;
+
+function _File_uploadOne(mimes)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		_File_node = document.createElement('input');
+		_File_node.type = 'file';
+		_File_node.accept = A2($elm$core$String$join, ',', mimes);
+		_File_node.addEventListener('change', function(event)
+		{
+			callback(_Scheduler_succeed(event.target.files[0]));
+		});
+		_File_click(_File_node);
+	});
+}
+
+function _File_uploadOneOrMore(mimes)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		_File_node = document.createElement('input');
+		_File_node.type = 'file';
+		_File_node.multiple = true;
+		_File_node.accept = A2($elm$core$String$join, ',', mimes);
+		_File_node.addEventListener('change', function(event)
+		{
+			var elmFiles = _List_fromArray(event.target.files);
+			callback(_Scheduler_succeed(_Utils_Tuple2(elmFiles.a, elmFiles.b)));
+		});
+		_File_click(_File_node);
+	});
+}
+
+
+// CONTENT
+
+function _File_toString(blob)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var reader = new FileReader();
+		reader.addEventListener('loadend', function() {
+			callback(_Scheduler_succeed(reader.result));
+		});
+		reader.readAsText(blob);
+		return function() { reader.abort(); };
+	});
+}
+
+function _File_toBytes(blob)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var reader = new FileReader();
+		reader.addEventListener('loadend', function() {
+			callback(_Scheduler_succeed(new DataView(reader.result)));
+		});
+		reader.readAsArrayBuffer(blob);
+		return function() { reader.abort(); };
+	});
+}
+
+function _File_toUrl(blob)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var reader = new FileReader();
+		reader.addEventListener('loadend', function() {
+			callback(_Scheduler_succeed(reader.result));
+		});
+		reader.readAsDataURL(blob);
+		return function() { reader.abort(); };
+	});
+}
+
 var $elm$core$Basics$EQ = {$: 'EQ'};
 var $elm$core$Basics$GT = {$: 'GT'};
 var $elm$core$Basics$LT = {$: 'LT'};
@@ -11722,14 +11917,370 @@ var $author$project$Requests$Id = function (a) {
 	return {$: 'Id', a: a};
 };
 var $author$project$Requests$init = $author$project$Requests$Id(0);
+var $elm$url$Url$Parser$State = F5(
+	function (visited, unvisited, params, frag, value) {
+		return {frag: frag, params: params, unvisited: unvisited, value: value, visited: visited};
+	});
+var $elm$url$Url$Parser$getFirstMatch = function (states) {
+	getFirstMatch:
+	while (true) {
+		if (!states.b) {
+			return $elm$core$Maybe$Nothing;
+		} else {
+			var state = states.a;
+			var rest = states.b;
+			var _v1 = state.unvisited;
+			if (!_v1.b) {
+				return $elm$core$Maybe$Just(state.value);
+			} else {
+				if ((_v1.a === '') && (!_v1.b.b)) {
+					return $elm$core$Maybe$Just(state.value);
+				} else {
+					var $temp$states = rest;
+					states = $temp$states;
+					continue getFirstMatch;
+				}
+			}
+		}
+	}
+};
+var $elm$url$Url$Parser$removeFinalEmpty = function (segments) {
+	if (!segments.b) {
+		return _List_Nil;
+	} else {
+		if ((segments.a === '') && (!segments.b.b)) {
+			return _List_Nil;
+		} else {
+			var segment = segments.a;
+			var rest = segments.b;
+			return A2(
+				$elm$core$List$cons,
+				segment,
+				$elm$url$Url$Parser$removeFinalEmpty(rest));
+		}
+	}
+};
+var $elm$url$Url$Parser$preparePath = function (path) {
+	var _v0 = A2($elm$core$String$split, '/', path);
+	if (_v0.b && (_v0.a === '')) {
+		var segments = _v0.b;
+		return $elm$url$Url$Parser$removeFinalEmpty(segments);
+	} else {
+		var segments = _v0;
+		return $elm$url$Url$Parser$removeFinalEmpty(segments);
+	}
+};
+var $elm$url$Url$Parser$addToParametersHelp = F2(
+	function (value, maybeList) {
+		if (maybeList.$ === 'Nothing') {
+			return $elm$core$Maybe$Just(
+				_List_fromArray(
+					[value]));
+		} else {
+			var list = maybeList.a;
+			return $elm$core$Maybe$Just(
+				A2($elm$core$List$cons, value, list));
+		}
+	});
+var $elm$url$Url$percentDecode = _Url_percentDecode;
+var $elm$url$Url$Parser$addParam = F2(
+	function (segment, dict) {
+		var _v0 = A2($elm$core$String$split, '=', segment);
+		if ((_v0.b && _v0.b.b) && (!_v0.b.b.b)) {
+			var rawKey = _v0.a;
+			var _v1 = _v0.b;
+			var rawValue = _v1.a;
+			var _v2 = $elm$url$Url$percentDecode(rawKey);
+			if (_v2.$ === 'Nothing') {
+				return dict;
+			} else {
+				var key = _v2.a;
+				var _v3 = $elm$url$Url$percentDecode(rawValue);
+				if (_v3.$ === 'Nothing') {
+					return dict;
+				} else {
+					var value = _v3.a;
+					return A3(
+						$elm$core$Dict$update,
+						key,
+						$elm$url$Url$Parser$addToParametersHelp(value),
+						dict);
+				}
+			}
+		} else {
+			return dict;
+		}
+	});
+var $elm$url$Url$Parser$prepareQuery = function (maybeQuery) {
+	if (maybeQuery.$ === 'Nothing') {
+		return $elm$core$Dict$empty;
+	} else {
+		var qry = maybeQuery.a;
+		return A3(
+			$elm$core$List$foldr,
+			$elm$url$Url$Parser$addParam,
+			$elm$core$Dict$empty,
+			A2($elm$core$String$split, '&', qry));
+	}
+};
+var $elm$url$Url$Parser$parse = F2(
+	function (_v0, url) {
+		var parser = _v0.a;
+		return $elm$url$Url$Parser$getFirstMatch(
+			parser(
+				A5(
+					$elm$url$Url$Parser$State,
+					_List_Nil,
+					$elm$url$Url$Parser$preparePath(url.path),
+					$elm$url$Url$Parser$prepareQuery(url.query),
+					url.fragment,
+					$elm$core$Basics$identity)));
+	});
+var $author$project$Comparison$UrlData = function (latents) {
+	return {latents: latents};
+};
+var $elm$url$Url$Parser$Internal$Parser = function (a) {
+	return {$: 'Parser', a: a};
+};
+var $elm$url$Url$Parser$Query$map2 = F3(
+	function (func, _v0, _v1) {
+		var a = _v0.a;
+		var b = _v1.a;
+		return $elm$url$Url$Parser$Internal$Parser(
+			function (dict) {
+				return A2(
+					func,
+					a(dict),
+					b(dict));
+			});
+	});
+var $author$project$Comparison$applyQueryParser = F2(
+	function (argParser, funcParser) {
+		return A3($elm$url$Url$Parser$Query$map2, $elm$core$Basics$apL, funcParser, argParser);
+	});
+var $elm$core$Set$Set_elm_builtin = function (a) {
+	return {$: 'Set_elm_builtin', a: a};
+};
+var $elm$core$Set$empty = $elm$core$Set$Set_elm_builtin($elm$core$Dict$empty);
+var $elm$core$Set$insert = F2(
+	function (key, _v0) {
+		var dict = _v0.a;
+		return $elm$core$Set$Set_elm_builtin(
+			A3($elm$core$Dict$insert, key, _Utils_Tuple0, dict));
+	});
+var $elm$core$Set$fromList = function (list) {
+	return A3($elm$core$List$foldl, $elm$core$Set$insert, $elm$core$Set$empty, list);
+};
+var $elm$url$Url$Parser$Query$map = F2(
+	function (func, _v0) {
+		var a = _v0.a;
+		return $elm$url$Url$Parser$Internal$Parser(
+			function (dict) {
+				return func(
+					a(dict));
+			});
+	});
+var $elm$url$Url$Parser$Query$custom = F2(
+	function (key, func) {
+		return $elm$url$Url$Parser$Internal$Parser(
+			function (dict) {
+				return func(
+					A2(
+						$elm$core$Maybe$withDefault,
+						_List_Nil,
+						A2($elm$core$Dict$get, key, dict)));
+			});
+	});
+var $elm$url$Url$Parser$Query$string = function (key) {
+	return A2(
+		$elm$url$Url$Parser$Query$custom,
+		key,
+		function (stringList) {
+			if (stringList.b && (!stringList.b.b)) {
+				var str = stringList.a;
+				return $elm$core$Maybe$Just(str);
+			} else {
+				return $elm$core$Maybe$Nothing;
+			}
+		});
+};
+var $author$project$Comparison$latentParser = function (name) {
+	return A2(
+		$elm$url$Url$Parser$Query$map,
+		A2(
+			$elm$core$Basics$composeR,
+			$elm$core$Maybe$withDefault(''),
+			A2(
+				$elm$core$Basics$composeR,
+				$elm$core$String$split(','),
+				A2(
+					$elm$core$Basics$composeR,
+					$elm$core$List$filterMap($elm$core$String$toInt),
+					$elm$core$Set$fromList))),
+		$elm$url$Url$Parser$Query$string(name));
+};
+var $author$project$Comparison$vits = $elm$core$Dict$fromList(
+	_List_fromArray(
+		[
+			_Utils_Tuple2('clip/imagenet', 'CLIP & ImageNet-1K'),
+			_Utils_Tuple2('dinov2/imagenet', 'DINOv2 & ImageNet-1K'),
+			_Utils_Tuple2('bioclip/inat21', 'BioCLIP & iNat21'),
+			_Utils_Tuple2('clip/inat21', 'CLIP & iNat21')
+		]));
+var $author$project$Comparison$latentsParser = A3(
+	$elm$core$List$foldl,
+	F2(
+		function (key, parser) {
+			return A2(
+				$author$project$Comparison$applyQueryParser,
+				parser,
+				A2(
+					$elm$url$Url$Parser$Query$map,
+					function (set) {
+						return A2($elm$core$Dict$insert, key, set);
+					},
+					$author$project$Comparison$latentParser(key)));
+		}),
+	A2(
+		$elm$url$Url$Parser$Query$map,
+		function (_v0) {
+			return $elm$core$Dict$empty;
+		},
+		$elm$url$Url$Parser$Query$string('dummy')),
+	$elm$core$Dict$keys($author$project$Comparison$vits));
+var $elm$url$Url$Parser$Parser = function (a) {
+	return {$: 'Parser', a: a};
+};
+var $elm$url$Url$Parser$mapState = F2(
+	function (func, _v0) {
+		var visited = _v0.visited;
+		var unvisited = _v0.unvisited;
+		var params = _v0.params;
+		var frag = _v0.frag;
+		var value = _v0.value;
+		return A5(
+			$elm$url$Url$Parser$State,
+			visited,
+			unvisited,
+			params,
+			frag,
+			func(value));
+	});
+var $elm$url$Url$Parser$map = F2(
+	function (subValue, _v0) {
+		var parseArg = _v0.a;
+		return $elm$url$Url$Parser$Parser(
+			function (_v1) {
+				var visited = _v1.visited;
+				var unvisited = _v1.unvisited;
+				var params = _v1.params;
+				var frag = _v1.frag;
+				var value = _v1.value;
+				return A2(
+					$elm$core$List$map,
+					$elm$url$Url$Parser$mapState(value),
+					parseArg(
+						A5($elm$url$Url$Parser$State, visited, unvisited, params, frag, subValue)));
+			});
+	});
+var $elm$url$Url$Parser$query = function (_v0) {
+	var queryParser = _v0.a;
+	return $elm$url$Url$Parser$Parser(
+		function (_v1) {
+			var visited = _v1.visited;
+			var unvisited = _v1.unvisited;
+			var params = _v1.params;
+			var frag = _v1.frag;
+			var value = _v1.value;
+			return _List_fromArray(
+				[
+					A5(
+					$elm$url$Url$Parser$State,
+					visited,
+					unvisited,
+					params,
+					frag,
+					value(
+						queryParser(params)))
+				]);
+		});
+};
+var $elm$url$Url$Parser$slash = F2(
+	function (_v0, _v1) {
+		var parseBefore = _v0.a;
+		var parseAfter = _v1.a;
+		return $elm$url$Url$Parser$Parser(
+			function (state) {
+				return A2(
+					$elm$core$List$concatMap,
+					parseAfter,
+					parseBefore(state));
+			});
+	});
+var $elm$url$Url$Parser$questionMark = F2(
+	function (parser, queryParser) {
+		return A2(
+			$elm$url$Url$Parser$slash,
+			parser,
+			$elm$url$Url$Parser$query(queryParser));
+	});
+var $elm$url$Url$Parser$s = function (str) {
+	return $elm$url$Url$Parser$Parser(
+		function (_v0) {
+			var visited = _v0.visited;
+			var unvisited = _v0.unvisited;
+			var params = _v0.params;
+			var frag = _v0.frag;
+			var value = _v0.value;
+			if (!unvisited.b) {
+				return _List_Nil;
+			} else {
+				var next = unvisited.a;
+				var rest = unvisited.b;
+				return _Utils_eq(next, str) ? _List_fromArray(
+					[
+						A5(
+						$elm$url$Url$Parser$State,
+						A2($elm$core$List$cons, next, visited),
+						rest,
+						params,
+						frag,
+						value)
+					]) : _List_Nil;
+			}
+		});
+};
+var $author$project$Comparison$urlParser = A2(
+	$elm$url$Url$Parser$map,
+	$author$project$Comparison$UrlData,
+	A2(
+		$elm$url$Url$Parser$slash,
+		$elm$url$Url$Parser$s('web'),
+		A2(
+			$elm$url$Url$Parser$slash,
+			$elm$url$Url$Parser$s('apps'),
+			A2(
+				$elm$url$Url$Parser$questionMark,
+				$elm$url$Url$Parser$s('comparison'),
+				$author$project$Comparison$latentsParser))));
 var $author$project$Comparison$init = F3(
 	function (_v0, url, key) {
+		var urlData = A2(
+			$elm$core$Maybe$withDefault,
+			{latents: $elm$core$Dict$empty},
+			A2($elm$url$Url$Parser$parse, $author$project$Comparison$urlParser, url));
 		var model = {
 			focusedLatent: $elm$core$Maybe$Nothing,
 			gradio: {host: 'http://127.0.0.1:7860'},
 			imageRequestId: $author$project$Requests$init,
+			imageUploaderHover: false,
 			inputExample: $author$project$Requests$Initial,
 			key: key,
+			latentPickerLatent: $elm$core$Maybe$Nothing,
+			latentPickerOpen: false,
+			latentPickerSearch: '',
+			latentPickerVitKey: '',
+			latents: urlData.latents,
 			saeActivations: $author$project$Requests$Initial,
 			saeActivationsRequestId: $author$project$Requests$init
 		};
@@ -11739,10 +12290,17 @@ var $author$project$Comparison$init = F3(
 	});
 var $elm$core$Platform$Sub$batch = _Platform_batch;
 var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
-var $author$project$Comparison$NoOp = {$: 'NoOp'};
-var $author$project$Comparison$onUrlChange = function (url) {
-	return $author$project$Comparison$NoOp;
+var $author$project$Comparison$ParseUrlData = function (a) {
+	return {$: 'ParseUrlData', a: a};
 };
+var $author$project$Comparison$onUrlChange = function (url) {
+	return $author$project$Comparison$ParseUrlData(
+		A2(
+			$elm$core$Maybe$withDefault,
+			{latents: $elm$core$Dict$empty},
+			A2($elm$url$Url$Parser$parse, $author$project$Comparison$urlParser, url)));
+};
+var $author$project$Comparison$NoOp = {$: 'NoOp'};
 var $author$project$Comparison$onUrlRequest = function (request) {
 	return $author$project$Comparison$NoOp;
 };
@@ -11773,9 +12331,9 @@ var $author$project$Comparison$GotSaeActivations = F2(
 	function (a, b) {
 		return {$: 'GotSaeActivations', a: a, b: b};
 	});
-var $author$project$Comparison$SaeActivation = F4(
-	function (model, latent, activations, examples) {
-		return {activations: activations, examples: examples, latent: latent, model: model};
+var $author$project$Comparison$SaeActivation = F5(
+	function (vit, latent, activations, highlighted, examples) {
+		return {activations: activations, examples: examples, highlighted: highlighted, latent: latent, vit: vit};
 	});
 var $author$project$Gradio$decodeOneHelper = function (maybe) {
 	if (maybe.$ === 'Just') {
@@ -11813,6 +12371,36 @@ var $author$project$Gradio$encodeImg = function (_v0) {
 				$elm$json$Json$Encode$string(image))
 			]));
 };
+var $elm$json$Json$Encode$dict = F3(
+	function (toKey, toValue, dictionary) {
+		return _Json_wrap(
+			A3(
+				$elm$core$Dict$foldl,
+				F3(
+					function (key, value, obj) {
+						return A3(
+							_Json_addField,
+							toKey(key),
+							toValue(value),
+							obj);
+					}),
+				_Json_emptyObject(_Utils_Tuple0),
+				dictionary));
+	});
+var $elm$json$Json$Encode$int = _Json_wrap;
+var $author$project$Comparison$encodeLatents = function (latents) {
+	return A3(
+		$elm$json$Json$Encode$dict,
+		$elm$core$Basics$identity,
+		$elm$json$Json$Encode$list($elm$json$Json$Encode$int),
+		A2(
+			$elm$core$Dict$map,
+			F2(
+				function (_v0, set) {
+					return $elm$core$Set$toList(set);
+				}),
+			latents));
+};
 var $author$project$Comparison$HighlightedExample = F4(
 	function (original, highlighted, label, exampleId) {
 		return {exampleId: exampleId, highlighted: highlighted, label: label, original: original};
@@ -11825,27 +12413,8 @@ var $author$project$Comparison$highlightedExampleDecoder = A5(
 	A2($elm$json$Json$Decode$field, 'highlighted_url', $author$project$Gradio$base64ImageDecoder),
 	A2($elm$json$Json$Decode$field, 'label', $elm$json$Json$Decode$string),
 	A2($elm$json$Json$Decode$field, 'example_id', $elm$json$Json$Decode$string));
-var $elm$json$Json$Encode$int = _Json_wrap;
-var $author$project$Comparison$getSaeActivations = F3(
-	function (cfg, id, image) {
-		var latents = $elm$json$Json$Encode$object(
-			_List_fromArray(
-				[
-					_Utils_Tuple2(
-					'bioclip/inat21',
-					A2(
-						$elm$json$Json$Encode$list,
-						$elm$json$Json$Encode$int,
-						_List_fromArray(
-							[449, 451, 518, 6448, 18380, 10185, 20085, 5435, 16081]))),
-					_Utils_Tuple2(
-					'clip/inat21',
-					A2(
-						$elm$json$Json$Encode$list,
-						$elm$json$Json$Encode$int,
-						_List_fromArray(
-							[4661, 565, 5317])))
-				]));
+var $author$project$Comparison$getSaeActivations = F4(
+	function (cfg, id, latents, image) {
 		return A5(
 			$author$project$Gradio$get,
 			cfg,
@@ -11853,25 +12422,114 @@ var $author$project$Comparison$getSaeActivations = F3(
 			_List_fromArray(
 				[
 					$author$project$Gradio$encodeImg(image),
-					latents
+					$author$project$Comparison$encodeLatents(latents)
 				]),
 			$author$project$Gradio$decodeOne(
 				$elm$json$Json$Decode$dict(
 					$elm$json$Json$Decode$list(
-						A5(
-							$elm$json$Json$Decode$map4,
+						A6(
+							$elm$json$Json$Decode$map5,
 							$author$project$Comparison$SaeActivation,
-							A2($elm$json$Json$Decode$field, 'model_name', $elm$json$Json$Decode$string),
+							A2(
+								$elm$json$Json$Decode$field,
+								'model_cfg',
+								A2($elm$json$Json$Decode$field, 'key', $elm$json$Json$Decode$string)),
 							A2($elm$json$Json$Decode$field, 'latent', $elm$json$Json$Decode$int),
 							A2(
 								$elm$json$Json$Decode$field,
 								'activations',
 								$elm$json$Json$Decode$list($elm$json$Json$Decode$float)),
+							A2($elm$json$Json$Decode$field, 'highlighted_url', $author$project$Gradio$base64ImageDecoder),
 							A2(
 								$elm$json$Json$Decode$field,
 								'examples',
 								$elm$json$Json$Decode$list($author$project$Comparison$highlightedExampleDecoder)))))),
 			$author$project$Comparison$GotSaeActivations(id));
+	});
+var $author$project$Comparison$GotFile = function (a) {
+	return {$: 'GotFile', a: a};
+};
+var $author$project$Comparison$GotPreview = function (a) {
+	return {$: 'GotPreview', a: a};
+};
+var $author$project$Comparison$ImageUploader = function (a) {
+	return {$: 'ImageUploader', a: a};
+};
+var $elm$time$Time$Posix = function (a) {
+	return {$: 'Posix', a: a};
+};
+var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
+var $elm$file$File$Select$file = F2(
+	function (mimes, toMsg) {
+		return A2(
+			$elm$core$Task$perform,
+			toMsg,
+			_File_uploadOne(mimes));
+	});
+var $author$project$Requests$next = function (_v0) {
+	var id = _v0.a;
+	return $author$project$Requests$Id(id + 1);
+};
+var $elm$file$File$toUrl = _File_toUrl;
+var $author$project$Comparison$imageUploaderUpdate = F2(
+	function (model, msg) {
+		switch (msg.$) {
+			case 'Upload':
+				return _Utils_Tuple2(
+					model,
+					A2(
+						$elm$file$File$Select$file,
+						_List_fromArray(
+							['image/*']),
+						A2($elm$core$Basics$composeR, $author$project$Comparison$GotFile, $author$project$Comparison$ImageUploader)));
+			case 'DragEnter':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{imageUploaderHover: true}),
+					$elm$core$Platform$Cmd$none);
+			case 'DragLeave':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{imageUploaderHover: false}),
+					$elm$core$Platform$Cmd$none);
+			case 'GotFile':
+				var file = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{imageUploaderHover: false}),
+					A2(
+						$elm$core$Task$perform,
+						A2($elm$core$Basics$composeR, $author$project$Comparison$GotPreview, $author$project$Comparison$ImageUploader),
+						$elm$file$File$toUrl(file)));
+			default:
+				var preview = msg.a;
+				var _v1 = $author$project$Gradio$base64Image(preview);
+				if (_v1.$ === 'Just') {
+					var url = _v1.a;
+					var saeActivationsRequestId = $author$project$Requests$next(model.saeActivationsRequestId);
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								inputExample: $author$project$Requests$Loaded(
+									{label: 'User Example', url: url}),
+								saeActivations: $author$project$Requests$Loading,
+								saeActivationsRequestId: saeActivationsRequestId
+							}),
+						A4($author$project$Comparison$getSaeActivations, model.gradio, saeActivationsRequestId, model.latents, url));
+				} else {
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								inputExample: $author$project$Requests$Failed('Uploaded image was not base64.')
+							}),
+						$elm$core$Platform$Cmd$none);
+				}
+		}
 	});
 var $author$project$Requests$isStale = F2(
 	function (_v0, _v1) {
@@ -11879,10 +12537,130 @@ var $author$project$Requests$isStale = F2(
 		var last = _v1.a;
 		return _Utils_cmp(id, last) < 0;
 	});
-var $author$project$Requests$next = function (_v0) {
-	var id = _v0.a;
-	return $author$project$Requests$Id(id + 1);
+var $elm$url$Url$Builder$relative = F2(
+	function (pathSegments, parameters) {
+		return _Utils_ap(
+			A2($elm$core$String$join, '/', pathSegments),
+			$elm$url$Url$Builder$toQuery(parameters));
+	});
+var $elm$url$Url$Builder$QueryParameter = F2(
+	function (a, b) {
+		return {$: 'QueryParameter', a: a, b: b};
+	});
+var $elm$url$Url$percentEncode = _Url_percentEncode;
+var $elm$url$Url$Builder$string = F2(
+	function (key, value) {
+		return A2(
+			$elm$url$Url$Builder$QueryParameter,
+			$elm$url$Url$percentEncode(key),
+			$elm$url$Url$percentEncode(value));
+	});
+var $author$project$Comparison$buildUrl = function (model) {
+	return A2(
+		$elm$url$Url$Builder$relative,
+		_List_Nil,
+		A2(
+			$elm$core$List$map,
+			function (_v1) {
+				var key = _v1.a;
+				var nums = _v1.b;
+				return A2($elm$url$Url$Builder$string, key, nums);
+			},
+			A2(
+				$elm$core$List$map,
+				function (_v0) {
+					var key = _v0.a;
+					var set = _v0.b;
+					return _Utils_Tuple2(
+						key,
+						A2(
+							$elm$core$String$join,
+							',',
+							A2(
+								$elm$core$List$map,
+								$elm$core$String$fromInt,
+								$elm$core$Set$toList(set))));
+				},
+				$elm$core$Dict$toList(model.latents))));
 };
+var $elm$browser$Browser$Navigation$pushUrl = _Browser_pushUrl;
+var $elm$core$Dict$singleton = F2(
+	function (key, value) {
+		return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, key, value, $elm$core$Dict$RBEmpty_elm_builtin, $elm$core$Dict$RBEmpty_elm_builtin);
+	});
+var $elm$core$Set$singleton = function (key) {
+	return $elm$core$Set$Set_elm_builtin(
+		A2($elm$core$Dict$singleton, key, _Utils_Tuple0));
+};
+var $author$project$Comparison$updateDictSet = F3(
+	function (key, value, dict) {
+		return A3(
+			$elm$core$Dict$update,
+			key,
+			function (maybeSet) {
+				if (maybeSet.$ === 'Just') {
+					var set = maybeSet.a;
+					return $elm$core$Maybe$Just(
+						A2($elm$core$Set$insert, value, set));
+				} else {
+					return $elm$core$Maybe$Just(
+						$elm$core$Set$singleton(value));
+				}
+			},
+			dict);
+	});
+var $author$project$Comparison$latentPickerUpdate = F2(
+	function (model, msg) {
+		switch (msg.$) {
+			case 'Pick':
+				var _v1 = model.latentPickerLatent;
+				if (_v1.$ === 'Nothing') {
+					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+				} else {
+					var latent = _v1.a;
+					var latents = A3($author$project$Comparison$updateDictSet, model.latentPickerVitKey, latent, model.latents);
+					return _Utils_Tuple2(
+						model,
+						A2(
+							$elm$browser$Browser$Navigation$pushUrl,
+							model.key,
+							$author$project$Comparison$buildUrl(
+								_Utils_update(
+									model,
+									{latents: latents}))));
+				}
+			case 'UpdateSearch':
+				var str = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{latentPickerOpen: true, latentPickerSearch: str}),
+					$elm$core$Platform$Cmd$none);
+			case 'SelectLatent':
+				var number = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							latentPickerLatent: $elm$core$Maybe$Just(number),
+							latentPickerOpen: false
+						}),
+					$elm$core$Platform$Cmd$none);
+			case 'SelectVit':
+				var key = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{latentPickerVitKey: key}),
+					$elm$core$Platform$Cmd$none);
+			default:
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{latentPickerOpen: true}),
+					$elm$core$Platform$Cmd$none);
+		}
+	});
 var $author$project$Comparison$update = F2(
 	function (msg, model) {
 		switch (msg.$) {
@@ -11905,7 +12683,7 @@ var $author$project$Comparison$update = F2(
 									saeActivations: $author$project$Requests$Loading,
 									saeActivationsRequestId: saeActivationsRequestId
 								}),
-							A3($author$project$Comparison$getSaeActivations, model.gradio, saeActivationsRequestId, example.url));
+							A4($author$project$Comparison$getSaeActivations, model.gradio, saeActivationsRequestId, model.latents, example.url));
 					} else {
 						var err = result.a;
 						return _Utils_Tuple2(
@@ -11972,7 +12750,7 @@ var $author$project$Comparison$update = F2(
 							{focusedLatent: $elm$core$Maybe$Nothing}),
 						$elm$core$Platform$Cmd$none) : _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				}
-			default:
+			case 'SelectExample':
 				var exampleId = msg.a;
 				var imageRequestId = $author$project$Requests$next(model.imageRequestId);
 				return _Utils_Tuple2(
@@ -11980,7 +12758,54 @@ var $author$project$Comparison$update = F2(
 						model,
 						{focusedLatent: $elm$core$Maybe$Nothing, imageRequestId: imageRequestId, inputExample: $author$project$Requests$Loading, saeActivations: $author$project$Requests$Initial}),
 					A3($author$project$Comparison$getImage, model.gradio, imageRequestId, exampleId));
+			case 'ImageUploader':
+				var imageMsg = msg.a;
+				return A2($author$project$Comparison$imageUploaderUpdate, model, imageMsg);
+			case 'LatentPicker':
+				var latentMsg = msg.a;
+				return A2($author$project$Comparison$latentPickerUpdate, model, latentMsg);
+			default:
+				var urlData = msg.a;
+				var saeActivationsRequestId = $author$project$Requests$next(model.saeActivationsRequestId);
+				var cmd = function () {
+					var _v5 = model.inputExample;
+					if (_v5.$ === 'Loaded') {
+						var example = _v5.a;
+						return A4($author$project$Comparison$getSaeActivations, model.gradio, saeActivationsRequestId, urlData.latents, example.url);
+					} else {
+						return $elm$core$Platform$Cmd$none;
+					}
+				}();
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{latents: urlData.latents, saeActivationsRequestId: saeActivationsRequestId}),
+					cmd);
 		}
+	});
+var $author$project$Comparison$LatentPicker = function (a) {
+	return {$: 'LatentPicker', a: a};
+};
+var $author$project$Comparison$Pick = {$: 'Pick'};
+var $author$project$Comparison$Upload = {$: 'Upload'};
+var $author$project$Comparison$viewGenericButton = F2(
+	function (msg, name) {
+		return A2(
+			$elm$html$Html$button,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('rounded-lg px-2 py-1 transition-colors'),
+					$elm$html$Html$Attributes$class('border border-sky-300 hover:border-sky-400'),
+					$elm$html$Html$Attributes$class('bg-sky-100 hover:bg-sky-200'),
+					$elm$html$Html$Attributes$class('text-gray-700 hover:text-gray-900'),
+					$elm$html$Html$Attributes$class('focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2'),
+					$elm$html$Html$Attributes$class('active:bg-gray-300'),
+					$elm$html$Html$Events$onClick(msg)
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(name)
+				]));
 	});
 var $elm$core$Maybe$andThen = F2(
 	function (callback, maybeValue) {
@@ -12002,6 +12827,7 @@ var $elm$core$List$filter = F2(
 			_List_Nil,
 			list);
 	});
+var $elm$core$Debug$log = _Debug_log;
 var $elm$core$Maybe$map = F2(
 	function (f, maybe) {
 		if (maybe.$ === 'Just') {
@@ -12065,7 +12891,12 @@ var $author$project$Comparison$bucket = function (value) {
 	var out = (clamped >= 1.0) ? 9 : $elm$core$Basics$floor(clamped * 10);
 	return out;
 };
-var $author$project$Comparison$viewGridCell = function (value) {
+var $elm$core$Basics$round = _Basics_round;
+var $author$project$Comparison$viewValue = function (value) {
+	return $elm$core$String$fromFloat(
+		$elm$core$Basics$round(value * 100) / 100);
+};
+var $author$project$Comparison$viewGridCell16 = function (value) {
 	var opacity = A2(
 		$elm$core$Maybe$withDefault,
 		'opacity-0',
@@ -12085,9 +12916,13 @@ var $author$project$Comparison$viewGridCell = function (value) {
 				$elm$html$Html$Attributes$class('xl:w-[40px] xl:h-[40px]'),
 				$elm$html$Html$Attributes$class(opacity)
 			]),
-		_List_Nil);
+		_List_fromArray(
+			[
+				$elm$html$Html$text(
+				$author$project$Comparison$viewValue(value))
+			]));
 };
-var $author$project$Comparison$viewGriddedImage = F2(
+var $author$project$Comparison$viewGriddedImage196 = F2(
 	function (values, _v0) {
 		var url = _v0.url;
 		var label = _v0.label;
@@ -12114,7 +12949,83 @@ var $author$project$Comparison$viewGriddedImage = F2(
 									$elm$html$Html$Attributes$class('lg:grid-rows-[repeat(14,_32px)] lg:grid-cols-[repeat(14,_32px)]'),
 									$elm$html$Html$Attributes$class('xl:grid-rows-[repeat(14,_40px)] xl:grid-cols-[repeat(14,_40px)]')
 								]),
-							A2($elm$core$List$map, $author$project$Comparison$viewGridCell, values)),
+							A2($elm$core$List$map, $author$project$Comparison$viewGridCell16, values)),
+							A2(
+							$elm$html$Html$img,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('block w-[224px] h-[224px]'),
+									$elm$html$Html$Attributes$class('md:w-[336px] md:h-[336px]'),
+									$elm$html$Html$Attributes$class('lg:w-[448px] lg:h-[448px]'),
+									$elm$html$Html$Attributes$class('xl:w-[560px] xl:h-[560px]'),
+									$elm$html$Html$Attributes$src(
+									$author$project$Gradio$base64ImageToString(url))
+								]),
+							_List_Nil)
+						])),
+					A2(
+					$elm$html$Html$p,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$elm$html$Html$text(label)
+						]))
+				]));
+	});
+var $author$project$Comparison$viewGridCell14 = function (value) {
+	var opacity = A2(
+		$elm$core$Maybe$withDefault,
+		'opacity-0',
+		A2(
+			$elm$core$Array$get,
+			$author$project$Comparison$bucket(0.5 * value),
+			$elm$core$Array$fromList(
+				_List_fromArray(
+					['opacity-0', 'opacity-10', 'opacity-20', 'opacity-30', 'opacity-40', 'opacity-50', 'opacity-60', 'opacity-70', 'opacity-80', 'opacity-90', 'opacity-100']))));
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				$elm$html$Html$Attributes$class('w-[14px] h-[14px] bg-rose-600'),
+				$elm$html$Html$Attributes$class('md:w-[21px] md:h-[21px]'),
+				$elm$html$Html$Attributes$class('lg:w-[28px] lg:h-[28px]'),
+				$elm$html$Html$Attributes$class('xl:w-[35px] xl:h-[35px]'),
+				$elm$html$Html$Attributes$class(opacity)
+			]),
+		_List_fromArray(
+			[
+				$elm$html$Html$text(
+				$author$project$Comparison$viewValue(value))
+			]));
+};
+var $author$project$Comparison$viewGriddedImage256 = F2(
+	function (values, _v0) {
+		var url = _v0.url;
+		var label = _v0.label;
+		return A2(
+			$elm$html$Html$div,
+			_List_Nil,
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('relative inline-block')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('absolute grid'),
+									$elm$html$Html$Attributes$class('grid-rows-[repeat(16,_14px)] grid-cols-[repeat(16,_14px)]'),
+									$elm$html$Html$Attributes$class('md:grid-rows-[repeat(16,_21px)] md:grid-cols-[repeat(16,_21px)]'),
+									$elm$html$Html$Attributes$class('lg:grid-rows-[repeat(16,_28px)] lg:grid-cols-[repeat(16,_28px)]'),
+									$elm$html$Html$Attributes$class('xl:grid-rows-[repeat(16,_35px)] xl:grid-cols-[repeat(16,_35px)]')
+								]),
+							A2($elm$core$List$map, $author$project$Comparison$viewGridCell14, values)),
 							A2(
 							$elm$html$Html$img,
 							_List_fromArray(
@@ -12172,7 +13083,7 @@ var $author$project$Comparison$viewInputExample = F3(
 							} else {
 								var _v4 = _v0.b;
 								var example = _v0.c.a;
-								return A2($author$project$Comparison$viewGriddedImage, _List_Nil, example);
+								return A2($author$project$Comparison$viewGriddedImage196, _List_Nil, example);
 							}
 						case 'Loading':
 							if (_v0.a.$ === 'Nothing') {
@@ -12180,14 +13091,14 @@ var $author$project$Comparison$viewInputExample = F3(
 							} else {
 								var _v5 = _v0.b;
 								var example = _v0.c.a;
-								return A2($author$project$Comparison$viewGriddedImage, _List_Nil, example);
+								return A2($author$project$Comparison$viewGriddedImage196, _List_Nil, example);
 							}
 						case 'Failed':
 							if (_v0.a.$ === 'Nothing') {
 								break _v0$3;
 							} else {
 								var example = _v0.c.a;
-								return A2($author$project$Comparison$viewGriddedImage, _List_Nil, example);
+								return A2($author$project$Comparison$viewGriddedImage196, _List_Nil, example);
 							}
 						default:
 							if (_v0.a.$ === 'Nothing') {
@@ -12216,15 +13127,322 @@ var $author$project$Comparison$viewInputExample = F3(
 														return _Utils_eq(act.latent, latent);
 													}),
 												A2($elm$core$Dict$get, model, activations)))));
-								return A2($author$project$Comparison$viewGriddedImage, values, example);
+								var _v7 = A2(
+									$elm$core$Debug$log,
+									'values',
+									$elm$core$List$length(values));
+								switch (_v7) {
+									case 196:
+										return A2($author$project$Comparison$viewGriddedImage196, values, example);
+									case 256:
+										return A2($author$project$Comparison$viewGriddedImage256, values, example);
+									default:
+										var unknown = _v7;
+										return $author$project$Comparison$viewErr(
+											'Got ' + ($elm$core$String$fromInt(unknown) + ' patches.'));
+								}
 							}
 					}
 			}
 		}
 		var _v3 = _v0.a;
 		var example = _v0.c.a;
-		return A2($author$project$Comparison$viewGriddedImage, _List_Nil, example);
+		return A2($author$project$Comparison$viewGriddedImage196, _List_Nil, example);
 	});
+var $author$project$Comparison$ToggleDropdown = {$: 'ToggleDropdown'};
+var $author$project$Comparison$UpdateSearch = function (a) {
+	return {$: 'UpdateSearch', a: a};
+};
+var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
+var $elm$core$List$takeReverse = F3(
+	function (n, list, kept) {
+		takeReverse:
+		while (true) {
+			if (n <= 0) {
+				return kept;
+			} else {
+				if (!list.b) {
+					return kept;
+				} else {
+					var x = list.a;
+					var xs = list.b;
+					var $temp$n = n - 1,
+						$temp$list = xs,
+						$temp$kept = A2($elm$core$List$cons, x, kept);
+					n = $temp$n;
+					list = $temp$list;
+					kept = $temp$kept;
+					continue takeReverse;
+				}
+			}
+		}
+	});
+var $elm$core$List$takeTailRec = F2(
+	function (n, list) {
+		return $elm$core$List$reverse(
+			A3($elm$core$List$takeReverse, n, list, _List_Nil));
+	});
+var $elm$core$List$takeFast = F3(
+	function (ctr, n, list) {
+		if (n <= 0) {
+			return _List_Nil;
+		} else {
+			var _v0 = _Utils_Tuple2(n, list);
+			_v0$1:
+			while (true) {
+				_v0$5:
+				while (true) {
+					if (!_v0.b.b) {
+						return list;
+					} else {
+						if (_v0.b.b.b) {
+							switch (_v0.a) {
+								case 1:
+									break _v0$1;
+								case 2:
+									var _v2 = _v0.b;
+									var x = _v2.a;
+									var _v3 = _v2.b;
+									var y = _v3.a;
+									return _List_fromArray(
+										[x, y]);
+								case 3:
+									if (_v0.b.b.b.b) {
+										var _v4 = _v0.b;
+										var x = _v4.a;
+										var _v5 = _v4.b;
+										var y = _v5.a;
+										var _v6 = _v5.b;
+										var z = _v6.a;
+										return _List_fromArray(
+											[x, y, z]);
+									} else {
+										break _v0$5;
+									}
+								default:
+									if (_v0.b.b.b.b && _v0.b.b.b.b.b) {
+										var _v7 = _v0.b;
+										var x = _v7.a;
+										var _v8 = _v7.b;
+										var y = _v8.a;
+										var _v9 = _v8.b;
+										var z = _v9.a;
+										var _v10 = _v9.b;
+										var w = _v10.a;
+										var tl = _v10.b;
+										return (ctr > 1000) ? A2(
+											$elm$core$List$cons,
+											x,
+											A2(
+												$elm$core$List$cons,
+												y,
+												A2(
+													$elm$core$List$cons,
+													z,
+													A2(
+														$elm$core$List$cons,
+														w,
+														A2($elm$core$List$takeTailRec, n - 4, tl))))) : A2(
+											$elm$core$List$cons,
+											x,
+											A2(
+												$elm$core$List$cons,
+												y,
+												A2(
+													$elm$core$List$cons,
+													z,
+													A2(
+														$elm$core$List$cons,
+														w,
+														A3($elm$core$List$takeFast, ctr + 1, n - 4, tl)))));
+									} else {
+										break _v0$5;
+									}
+							}
+						} else {
+							if (_v0.a === 1) {
+								break _v0$1;
+							} else {
+								break _v0$5;
+							}
+						}
+					}
+				}
+				return list;
+			}
+			var _v1 = _v0.b;
+			var x = _v1.a;
+			return _List_fromArray(
+				[x]);
+		}
+	});
+var $elm$core$List$take = F2(
+	function (n, list) {
+		return A3($elm$core$List$takeFast, 0, n, list);
+	});
+var $author$project$Comparison$SelectLatent = function (a) {
+	return {$: 'SelectLatent', a: a};
+};
+var $author$project$Comparison$viewNumberOption = function (number) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				$elm$html$Html$Events$onClick(
+				$author$project$Comparison$LatentPicker(
+					$author$project$Comparison$SelectLatent(number)))
+			]),
+		_List_fromArray(
+			[
+				$elm$html$Html$text(
+				$elm$core$String$fromInt(number))
+			]));
+};
+var $author$project$Comparison$viewDropdown = F2(
+	function (open, search) {
+		if (open) {
+			var filteredNumbers = A2(
+				$elm$core$List$take,
+				100,
+				A2(
+					$elm$core$List$filter,
+					function (n) {
+						return A2(
+							$elm$core$String$contains,
+							search,
+							$elm$core$String$fromInt(n));
+					},
+					A2($elm$core$List$range, 1, 24576)));
+			return A2(
+				$elm$html$Html$div,
+				_List_Nil,
+				A2($elm$core$List$map, $author$project$Comparison$viewNumberOption, filteredNumbers));
+		} else {
+			return $elm$html$Html$text('');
+		}
+	});
+var $author$project$Comparison$viewSelection = function (maybeLatent) {
+	if (maybeLatent.$ === 'Just') {
+		var latent = maybeLatent.a;
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('mt-1')
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(
+					'Selected: ' + $elm$core$String$fromInt(latent))
+				]));
+	} else {
+		return $elm$html$Html$text('');
+	}
+};
+var $author$project$Comparison$viewLatentPicker = F3(
+	function (open, search, maybeLatent) {
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('relative')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$input,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$type_('text'),
+							$elm$html$Html$Attributes$placeholder('Search numbers (1-24576)...'),
+							$elm$html$Html$Attributes$value(search),
+							$elm$html$Html$Events$onInput(
+							A2($elm$core$Basics$composeR, $author$project$Comparison$UpdateSearch, $author$project$Comparison$LatentPicker)),
+							$elm$html$Html$Events$onClick(
+							$author$project$Comparison$LatentPicker($author$project$Comparison$ToggleDropdown)),
+							$elm$html$Html$Attributes$class('w-100')
+						]),
+					_List_Nil),
+					A2($author$project$Comparison$viewDropdown, open, search),
+					$author$project$Comparison$viewSelection(maybeLatent)
+				]));
+	});
+var $author$project$Comparison$SelectVit = function (a) {
+	return {$: 'SelectVit', a: a};
+};
+var $elm$json$Json$Encode$bool = _Json_wrap;
+var $elm$html$Html$Attributes$boolProperty = F2(
+	function (key, bool) {
+		return A2(
+			_VirtualDom_property,
+			key,
+			$elm$json$Json$Encode$bool(bool));
+	});
+var $elm$html$Html$Attributes$disabled = $elm$html$Html$Attributes$boolProperty('disabled');
+var $elm$html$Html$label = _VirtualDom_node('label');
+var $elm$html$Html$option = _VirtualDom_node('option');
+var $elm$html$Html$select = _VirtualDom_node('select');
+var $elm$html$Html$Attributes$selected = $elm$html$Html$Attributes$boolProperty('selected');
+var $author$project$Comparison$viewVitName = function (key) {
+	var _v0 = A2($elm$core$Dict$get, key, $author$project$Comparison$vits);
+	if (_v0.$ === 'Just') {
+		var name = _v0.a;
+		return name;
+	} else {
+		return 'Unknown ViT key: ' + key;
+	}
+};
+var $author$project$Comparison$viewVitOption = function (key) {
+	return A2(
+		$elm$html$Html$option,
+		_List_fromArray(
+			[
+				$elm$html$Html$Attributes$value(key)
+			]),
+		_List_fromArray(
+			[
+				$elm$html$Html$text(
+				$author$project$Comparison$viewVitName(key))
+			]));
+};
+var $author$project$Comparison$viewModelPicker = A2(
+	$elm$html$Html$div,
+	_List_Nil,
+	_List_fromArray(
+		[
+			A2(
+			$elm$html$Html$label,
+			_List_Nil,
+			_List_fromArray(
+				[
+					$elm$html$Html$text('Choose a model:')
+				])),
+			A2(
+			$elm$html$Html$select,
+			_List_fromArray(
+				[
+					$elm$html$Html$Events$onInput(
+					A2($elm$core$Basics$composeR, $author$project$Comparison$SelectVit, $author$project$Comparison$LatentPicker))
+				]),
+			A2(
+				$elm$core$List$cons,
+				A2(
+					$elm$html$Html$option,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$value(''),
+							$elm$html$Html$Attributes$disabled(true),
+							$elm$html$Html$Attributes$selected(true)
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text('select a ViT')
+						])),
+				A2(
+					$elm$core$List$map,
+					$author$project$Comparison$viewVitOption,
+					$elm$core$Dict$keys($author$project$Comparison$vits))))
+		]));
 var $author$project$Comparison$uncurry = F2(
 	function (f, _v0) {
 		var a = _v0.a;
@@ -12240,7 +13458,6 @@ var $author$project$Comparison$FocusLatent = F2(
 		return {$: 'FocusLatent', a: a, b: b};
 	});
 var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
-var $elm$html$Html$details = _VirtualDom_node('details');
 var $elm$html$Html$Events$onMouseEnter = function (msg) {
 	return A2(
 		$elm$html$Html$Events$on,
@@ -12253,7 +13470,8 @@ var $elm$html$Html$Events$onMouseLeave = function (msg) {
 		'mouseleave',
 		$elm$json$Json$Decode$succeed(msg));
 };
-var $elm$html$Html$summary = _VirtualDom_node('summary');
+var $elm$html$Html$Attributes$rel = _VirtualDom_attribute('rel');
+var $elm$html$Html$Attributes$target = $elm$html$Html$Attributes$stringProperty('target');
 var $author$project$Comparison$SelectExample = function (a) {
 	return {$: 'SelectExample', a: a};
 };
@@ -12300,8 +13518,9 @@ var $author$project$Comparison$viewHighlightedExample = F2(
 	});
 var $author$project$Comparison$viewSaeActivation = F2(
 	function (focusedLatent, _v0) {
-		var model = _v0.model;
+		var vit = _v0.vit;
 		var latent = _v0.latent;
+		var highlighted = _v0.highlighted;
 		var activations = _v0.activations;
 		var examples = _v0.examples;
 		var active = function () {
@@ -12311,7 +13530,7 @@ var $author$project$Comparison$viewSaeActivation = F2(
 				var _v2 = focusedLatent.a;
 				var name = _v2.a;
 				var l = _v2.b;
-				return _Utils_eq(name, model) && _Utils_eq(l, latent);
+				return _Utils_eq(name, vit) && _Utils_eq(l, latent);
 			}
 		}();
 		return A2(
@@ -12320,23 +13539,23 @@ var $author$project$Comparison$viewSaeActivation = F2(
 			_List_fromArray(
 				[
 					A2(
-					$elm$html$Html$details,
+					$elm$html$Html$div,
 					_List_fromArray(
 						[
-							$elm$html$Html$Attributes$class('cursor-pointer rounded-lg border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow duration-200 dark:border-gray-700 dark:bg-gray-800'),
+							$elm$html$Html$Attributes$class('rounded-lg border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow duration-200 dark:border-gray-700 dark:bg-gray-800'),
 							A2($elm$html$Html$Attributes$attribute, 'open', ''),
 							$elm$html$Html$Events$onMouseEnter(
-							A2($author$project$Comparison$FocusLatent, model, latent)),
+							A2($author$project$Comparison$FocusLatent, vit, latent)),
 							$elm$html$Html$Events$onMouseLeave(
-							A2($author$project$Comparison$BlurLatent, model, latent))
+							A2($author$project$Comparison$BlurLatent, vit, latent))
 						]),
 					_List_fromArray(
 						[
 							A2(
-							$elm$html$Html$summary,
+							$elm$html$Html$div,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$class('cursor-pointer select-none px-4 py-3 hover:bg-gray-50 text-gray-900')
+									$elm$html$Html$Attributes$class('select-none px-4 py-3 hover:bg-gray-50 text-gray-900')
 								]),
 							_List_fromArray(
 								[
@@ -12347,6 +13566,19 @@ var $author$project$Comparison$viewSaeActivation = F2(
 										[
 											$elm$html$Html$text(
 											'Latent: ' + $elm$core$String$fromInt(latent))
+										])),
+									A2(
+									$elm$html$Html$a,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$href(
+											$author$project$Gradio$base64ImageToString(highlighted)),
+											$elm$html$Html$Attributes$target('_blank'),
+											$elm$html$Html$Attributes$rel('noopener noreferrer')
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('Open Image')
 										]))
 								])),
 							A2(
@@ -12452,7 +13684,17 @@ var $author$project$Comparison$view = function (model) {
 								_List_fromArray(
 									[
 										$elm$html$Html$text('TODO: other example images here')
-									]))
+									])),
+								A2(
+								$author$project$Comparison$viewGenericButton,
+								$author$project$Comparison$ImageUploader($author$project$Comparison$Upload),
+								'Upload Image'),
+								A3($author$project$Comparison$viewLatentPicker, model.latentPickerOpen, model.latentPickerSearch, model.latentPickerLatent),
+								$author$project$Comparison$viewModelPicker,
+								A2(
+								$author$project$Comparison$viewGenericButton,
+								$author$project$Comparison$LatentPicker($author$project$Comparison$Pick),
+								'Add Latent')
 							])),
 						A2(
 						$elm$html$Html$div,
@@ -12481,4 +13723,4 @@ var $author$project$Comparison$main = $elm$browser$Browser$application(
 		view: $author$project$Comparison$view
 	});
 _Platform_export({'Comparison':{'init':$author$project$Comparison$main(
-	$elm$json$Json$Decode$succeed(_Utils_Tuple0))({"versions":{"elm":"0.19.1"},"types":{"message":"Comparison.Msg","aliases":{"Comparison.Example":{"args":[],"type":"{ url : Gradio.Base64Image, label : String.String }"},"Comparison.HighlightedExample":{"args":[],"type":"{ original : Gradio.Base64Image, highlighted : Gradio.Base64Image, label : String.String, exampleId : String.String }"},"Comparison.SaeActivation":{"args":[],"type":"{ model : String.String, latent : Basics.Int, activations : List.List Basics.Float, examples : List.List Comparison.HighlightedExample }"}},"unions":{"Comparison.Msg":{"args":[],"tags":{"NoOp":[],"GotImage":["Requests.Id","Result.Result Gradio.Error Comparison.Example"],"GotSaeActivations":["Requests.Id","Result.Result Gradio.Error (Dict.Dict String.String (List.List Comparison.SaeActivation))"],"SelectExample":["String.String"],"FocusLatent":["String.String","Basics.Int"],"BlurLatent":["String.String","Basics.Int"]}},"Gradio.Base64Image":{"args":[],"tags":{"Base64Image":["String.String"]}},"Dict.Dict":{"args":["k","v"],"tags":{"RBNode_elm_builtin":["Dict.NColor","k","v","Dict.Dict k v","Dict.Dict k v"],"RBEmpty_elm_builtin":[]}},"Gradio.Error":{"args":[],"tags":{"NetworkError":["String.String"],"ParsingError":["String.String"],"JsonError":["String.String"],"ApiError":["String.String"]}},"Basics.Float":{"args":[],"tags":{"Float":[]}},"Requests.Id":{"args":[],"tags":{"Id":["Basics.Int"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}},"Dict.NColor":{"args":[],"tags":{"Red":[],"Black":[]}}}}})}});}(this));
+	$elm$json$Json$Decode$succeed(_Utils_Tuple0))({"versions":{"elm":"0.19.1"},"types":{"message":"Comparison.Msg","aliases":{"Comparison.Example":{"args":[],"type":"{ url : Gradio.Base64Image, label : String.String }"},"Comparison.HighlightedExample":{"args":[],"type":"{ original : Gradio.Base64Image, highlighted : Gradio.Base64Image, label : String.String, exampleId : String.String }"},"Comparison.SaeActivation":{"args":[],"type":"{ vit : Comparison.VitKey, latent : Basics.Int, activations : List.List Basics.Float, highlighted : Gradio.Base64Image, examples : List.List Comparison.HighlightedExample }"},"Comparison.UrlData":{"args":[],"type":"{ latents : Dict.Dict Comparison.VitKey (Set.Set Basics.Int) }"},"Comparison.VitKey":{"args":[],"type":"String.String"}},"unions":{"Comparison.Msg":{"args":[],"tags":{"NoOp":[],"GotImage":["Requests.Id","Result.Result Gradio.Error Comparison.Example"],"GotSaeActivations":["Requests.Id","Result.Result Gradio.Error (Dict.Dict Comparison.VitKey (List.List Comparison.SaeActivation))"],"SelectExample":["String.String"],"FocusLatent":["String.String","Basics.Int"],"BlurLatent":["String.String","Basics.Int"],"ImageUploader":["Comparison.ImageUploaderMsg"],"LatentPicker":["Comparison.LatentPickerMsg"],"ParseUrlData":["Comparison.UrlData"]}},"Gradio.Base64Image":{"args":[],"tags":{"Base64Image":["String.String"]}},"Dict.Dict":{"args":["k","v"],"tags":{"RBNode_elm_builtin":["Dict.NColor","k","v","Dict.Dict k v","Dict.Dict k v"],"RBEmpty_elm_builtin":[]}},"Gradio.Error":{"args":[],"tags":{"NetworkError":["String.String"],"ParsingError":["String.String"],"JsonError":["String.String"],"ApiError":["String.String"]}},"Basics.Float":{"args":[],"tags":{"Float":[]}},"Requests.Id":{"args":[],"tags":{"Id":["Basics.Int"]}},"Comparison.ImageUploaderMsg":{"args":[],"tags":{"Upload":[],"DragEnter":[],"DragLeave":[],"GotFile":["File.File"],"GotPreview":["String.String"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Comparison.LatentPickerMsg":{"args":[],"tags":{"Pick":[],"SelectVit":["Comparison.VitKey"],"ToggleDropdown":[],"UpdateSearch":["String.String"],"SelectLatent":["Basics.Int"]}},"List.List":{"args":["a"],"tags":{}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"Set.Set":{"args":["t"],"tags":{"Set_elm_builtin":["Dict.Dict t ()"]}},"String.String":{"args":[],"tags":{"String":[]}},"File.File":{"args":[],"tags":{"File":[]}},"Dict.NColor":{"args":[],"tags":{"Red":[],"Black":[]}}}}})}});}(this));

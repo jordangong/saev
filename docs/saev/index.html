@@ -29,6 +29,7 @@ hljs.highlightAll();
 <section id="section-intro">
 <p>saev is a Python package for training sparse autoencoders (SAEs) on vision transformers (ViTs) in PyTorch.</p>
 <p>The main entrypoint to the package is in <code>__main__</code>; use <code>python -m saev --help</code> to see the options and documentation for the script.</p>
+<h1 id="tutorials">Tutorials</h1>
 <h1 id="guide-to-training-saes-on-vision-models">Guide to Training SAEs on Vision Models</h1>
 <ol>
 <li>Record ViT activations and save them to disk.</li>
@@ -120,7 +121,7 @@ You can see all the options with <code>uv run python -m saev visuals --help</cod
 </ol>
 <p>Then, the script runs SAE inference on all of the ViT activations, calculates the images with maximal activation for each SAE feature, then retrieves the images from the original image dataset and highlights them for browsing later on.</p>
 <div class="admonition note">
-<p class="admonition-title">Note:&ensp;Because of limitations in the SAE training process, not all SAE latents (dimensions of <span><span class="MathJax_Preview">f</span><script type="math/tex">f</script></span>) are equally interesting. Some latents are dead, some are <em>dense</em>, some only fire on two images, etc. Typically, you want neurons that fire very strongly (high value) and fairly infrequently (low frequency). You might be interested in particular, fixed latents (<code>--include-latents</code>). **I recommend using <code><a title="saev.interactive.metrics" href="interactive/metrics.html">saev.interactive.metrics</a></code> to figure out good thresholds.</p>
+<p class="admonition-title">Note:&ensp;Because of limitations in the SAE training process, not all SAE latents (dimensions of <span><span class="MathJax_Preview">f</span><script type="math/tex">f</script></span>) are equally interesting. Some latents are dead, some are <em>dense</em>, some only fire on two images, etc. Typically, you want neurons that fire very strongly (high value) and fairly infrequently (low frequency). You might be interested in particular, fixed latents (<code>--include-latents</code>). <strong>I recommend using <code><a title="saev.interactive.metrics" href="interactive/metrics.html">saev.interactive.metrics</a></code> to figure out good thresholds.</strong></p>
 </div>
 <p>So you might run:</p>
 <pre><code class="language-sh">uv run python -m saev visuals \
@@ -182,24 +183,26 @@ scale_mean = true
 Parameters that affect data loading (like <code>batch_size</code> or dataset configuration) will cause the sweep to split into separate parallel groups.
 The system automatically handles this division to maximize efficiency.</p>
 <h2 id="training-metrics-and-visualizations">Training Metrics and Visualizations</h2>
+<p>When you train a sweep of SAEs, you probably want to understand which checkpoint is best.
+<code><a title="saev" href="#saev">saev</a></code> provides some tools to help with that.</p>
+<p>First, we offer a tool to look at some basic summary statistics of all your trained checkpoints.</p>
+<p><code><a title="saev.interactive.metrics" href="interactive/metrics.html">saev.interactive.metrics</a></code> is a <a href="https://marimo.io/">marimo</a> notebook (similar to Jupyter, but more interactive) for making L0 vs MSE plots by reading runs off of WandB.</p>
+<p>However, there are some pieces of code that need to be changed for you to use it.</p>
 <div class="admonition todo">
 <p class="admonition-title">TODO</p>
 <p>Explain how to use the <code><a title="saev.interactive.metrics" href="interactive/metrics.html">saev.interactive.metrics</a></code> notebook.</p>
 </div>
-<h1 id="related-work">Related Work</h1>
-<p>Various papers and internet posts on training SAEs for vision.</p>
-<h2 id="preprints">Preprints</h2>
-<p><a href="https://arxiv.org/pdf/2410.03334">An X-Ray Is Worth 15 Features: Sparse Autoencoders for Interpretable Radiology Report Generation</a>
-* Haven't read this yet, but Hugo Fry is an author.</p>
-<h2 id="lesswrong">LessWrong</h2>
-<p><a href="https://www.lesswrong.com/posts/bCtbuWraqYTDtuARg/towards-multimodal-interpretability-learning-sparse-2">Towards Multimodal Interpretability: Learning Sparse Interpretable Features in Vision Transformers</a>
-* Trains a sparse autoencoder on the 22nd layer of a CLIP ViT-L/14. First public work training an SAE on a ViT. Finds interesting features, demonstrating that SAEs work with ViTs.</p>
-<p><a href="https://www.lesswrong.com/posts/Quqekpvx8BGMMcaem/interpreting-and-steering-features-in-images">Interpreting and Steering Features in Images</a>
-* Havne't read it yet.</p>
-<p><a href="https://www.lesswrong.com/posts/iYFuZo9BMvr6GgMs5/case-study-interpreting-manipulating-and-controlling-clip">Case Study: Interpreting, Manipulating, and Controlling CLIP With Sparse Autoencoders</a>
-* Followup to the above work; haven't read it yet.</p>
-<p><a href="https://www.lesswrong.com/posts/wrznNDMRmbQABAEMH/a-suite-of-vision-sparse-autoencoders">A Suite of Vision Sparse Autoencoders</a>
-* Train a sparse autoencoder on various layers using the TopK with k=32 on a CLIP ViT-L/14 trained on LAION-2B. The SAE is trained on 1.2B tokens including patch (not just [CLS]). Limited evaluation.</p>
+<ul>
+<li>Need to change your wandb username from samuelstevens to USERNAME from wandb</li>
+<li>Tag filter</li>
+<li>Need to run the notebook on the same machine as the original ViT shards and the shards need to be there.</li>
+<li>Think of better ways to do model and data keys</li>
+<li>Look at examples</li>
+<li>run visuals before features</li>
+</ul>
+<p>How to run visuals faster?</p>
+<p>explain how these features are visualized</p>
+<h1 id="how-to-guides">How-To Guides</h1>
 <h1 id="reproduce">Reproduce</h1>
 <p>To reproduce our findings from our preprint, you will need to train a couple SAEs on various datasets, then save visual examples so you can browse them in the notebooks.</p>
 <h2 id="table-of-contents">Table of Contents</h2>
@@ -228,6 +231,21 @@ The system automatically handles this division to maximize efficiency.</p>
 </code></pre>
 <p>Then open <a href="https://localhost:2718">localhost:2718</a> in your browser and open the <code>saev/interactive/features.py</code> file.
 Choose one of the checkpoints in the dropdown and click through the different neurons to find patterns in the underlying ViT.</p>
+<h1 id="explanations">Explanations</h1>
+<h1 id="related-work">Related Work</h1>
+<p>Various papers and internet posts on training SAEs for vision.</p>
+<h2 id="preprints">Preprints</h2>
+<p><a href="https://arxiv.org/pdf/2410.03334">An X-Ray Is Worth 15 Features: Sparse Autoencoders for Interpretable Radiology Report Generation</a>
+* Haven't read this yet, but Hugo Fry is an author.</p>
+<h2 id="lesswrong">LessWrong</h2>
+<p><a href="https://www.lesswrong.com/posts/bCtbuWraqYTDtuARg/towards-multimodal-interpretability-learning-sparse-2">Towards Multimodal Interpretability: Learning Sparse Interpretable Features in Vision Transformers</a>
+* Trains a sparse autoencoder on the 22nd layer of a CLIP ViT-L/14. First public work training an SAE on a ViT. Finds interesting features, demonstrating that SAEs work with ViTs.</p>
+<p><a href="https://www.lesswrong.com/posts/Quqekpvx8BGMMcaem/interpreting-and-steering-features-in-images">Interpreting and Steering Features in Images</a>
+* Havne't read it yet.</p>
+<p><a href="https://www.lesswrong.com/posts/iYFuZo9BMvr6GgMs5/case-study-interpreting-manipulating-and-controlling-clip">Case Study: Interpreting, Manipulating, and Controlling CLIP With Sparse Autoencoders</a>
+* Followup to the above work; haven't read it yet.</p>
+<p><a href="https://www.lesswrong.com/posts/wrznNDMRmbQABAEMH/a-suite-of-vision-sparse-autoencoders">A Suite of Vision Sparse Autoencoders</a>
+* Train a sparse autoencoder on various layers using the TopK with k=32 on a CLIP ViT-L/14 trained on LAION-2B. The SAE is trained on 1.2B tokens including patch (not just [CLS]). Limited evaluation.</p>
 <h1 id="inference-instructions">Inference Instructions</h1>
 <p>Briefly, you need to:</p>
 <ol>
@@ -245,16 +263,16 @@ Choose one of the checkpoints in the dropdown and click through the different ne
 </code></pre>
 <h2 id="get-the-code">Get the Code</h2>
 <p>The easiest way to do this is to clone the code:</p>
-<pre><code>git clone https://github.com/OSU-NLP-Group/SAE-V
+<pre><code>git clone https://github.com/OSU-NLP-Group/saev
 </code></pre>
 <p>You can also install the package from git if you use uv (not sure about pip or cuda):</p>
-<pre><code class="language-sh">uv add git+https://github.com/OSU-NLP-Group/SAE-V
+<pre><code class="language-sh">uv add git+https://github.com/OSU-NLP-Group/saev
 </code></pre>
 <p>Or clone it and install it as an editable with pip, lik <code>pip install -e .</code> in your virtual environment.</p>
 <p>Then you can do things like <code>from <a title="saev" href="#saev">saev</a> import &hellip;</code>.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>If you struggle to get <code><a title="saev" href="#saev">saev</a></code> installed, open an issue on <a href="https://github.com/OSU-NLP-Group/SAE-V">GitHub</a> and I will figure out how to make it easier.</p>
+<p>If you struggle to get <code><a title="saev" href="#saev">saev</a></code> installed, open an issue on <a href="https://github.com/OSU-NLP-Group/saev">GitHub</a> and I will figure out how to make it easier.</p>
 </div>
 <h2 id="load-the-checkpoint">Load the Checkpoint</h2>
 <pre><code class="language-py">import saev.nn
@@ -376,6 +394,7 @@ These tests are quite slow</p></div>
 <nav id="sidebar">
 <div class="toc">
 <ul>
+<li><a href="#tutorials">Tutorials</a></li>
 <li><a href="#guide-to-training-saes-on-vision-models">Guide to Training SAEs on Vision Models</a><ul>
 <li><a href="#record-vit-activations-to-disk">Record ViT Activations to Disk</a></li>
 <li><a href="#train-saes-on-activations">Train SAEs on Activations</a></li>
@@ -390,17 +409,19 @@ These tests are quite slow</p></div>
 <li><a href="#training-metrics-and-visualizations">Training Metrics and Visualizations</a></li>
 </ul>
 </li>
-<li><a href="#related-work">Related Work</a><ul>
-<li><a href="#preprints">Preprints</a></li>
-<li><a href="#lesswrong">LessWrong</a></li>
-</ul>
-</li>
+<li><a href="#how-to-guides">How-To Guides</a></li>
 <li><a href="#reproduce">Reproduce</a><ul>
 <li><a href="#table-of-contents">Table of Contents</a></li>
 <li><a href="#save-activations">Save Activations</a></li>
 <li><a href="#train-saes">Train SAEs</a></li>
 <li><a href="#choose-best-checkpoints">Choose Best Checkpoints</a></li>
 <li><a href="#save-visualizations">Save Visualizations</a></li>
+</ul>
+</li>
+<li><a href="#explanations">Explanations</a></li>
+<li><a href="#related-work">Related Work</a><ul>
+<li><a href="#preprints">Preprints</a></li>
+<li><a href="#lesswrong">LessWrong</a></li>
 </ul>
 </li>
 <li><a href="#inference-instructions">Inference Instructions</a><ul>

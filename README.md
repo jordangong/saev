@@ -8,8 +8,8 @@ This is the codebase used for our preprint "Sparse Autoencoders for Scientifical
 
 * [arXiv preprint](https://arxiv.org/abs/2502.06755)
 * [Huggingface Models](https://huggingface.co/collections/osunlp/sae-v-67ab8c4fdf179d117db28195)
-* [API Docs](https://osu-nlp-group.github.io/SAE-V/saev)
-* [Demos](https://osu-nlp-group.github.io/SAE-V/#demos)
+* [API Docs](https://osu-nlp-group.github.io/saev/saev)
+* [Demos](https://osu-nlp-group.github.io/saev/#demos)
 
 ## About
 
@@ -28,8 +28,6 @@ Please open an issue or a PR if there is missing work.
 Installation is supported with [uv](https://docs.astral.sh/uv/).
 saev will likely work with pure pip, conda, etc. but I will not formally support it.
 
-To install, clone this repository (maybe fork it first if you want).
-
 Clone this repository (or fork it), then from the root directory:
 
 ```bash
@@ -40,11 +38,10 @@ This will create a virtual environment and display the CLI help.
 
 ## Using `saev`
 
-See the [docs](https://osu-nlp-group.github.io/SAE-V/saev) for an overview.
+See the [docs](https://osu-nlp-group.github.io/saev/saev) for an overview.
 
 You can ask questions about this repo using the `llms.txt` file.
 
 Example (macOS):
 
-`curl https://osu-nlp-group.github.io/SAE-V/llms.txt | pbcopy`
-Paste into [Claude](https://claude.ai) or any LLM interface of your choice.
+`curl https://osu-nlp-group.github.io/saev/llms.txt | pbcopy`, then paste into [Claude](https://claude.ai) or any LLM interface of your choice.

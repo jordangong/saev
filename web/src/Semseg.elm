@@ -484,7 +484,7 @@ type alias QueryParams =
 urlParser : Url.Parser.Parser (QueryParams -> a) a
 urlParser =
     if isProduction then
-        Url.Parser.s "SAE-V"
+        Url.Parser.s "saev"
             </> Url.Parser.s "demos"
             </> Url.Parser.s "semseg"
             <?> Url.Parser.Query.int "example"
@@ -507,7 +507,7 @@ explainGradioError err =
     let
         githubLink =
             Html.a
-                [ Html.Attributes.href "https://github.com/OSU-NLP-Group/SAE-V/issues/new"
+                [ Html.Attributes.href "https://github.com/OSU-NLP-Group/saev/issues/new"
                 , class "text-sky-500 hover:underline"
                 ]
                 [ Html.text "GitHub" ]
