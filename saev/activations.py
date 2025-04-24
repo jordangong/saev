@@ -223,6 +223,47 @@ class DinoV2(torch.nn.Module):
 
 
 @jaxtyped(typechecker=beartype.beartype)
+class Vit(torch.nn.Module):
+    """
+    Generic Vision Transformer with support for loading checkpoints from timm.
+    """
+
+    def __init__(self, vit_ckpt: str):
+        super().__init__()
+
+        import timm
+
+        # Load the model from timm
+        self.model = timm.create_model(
+            vit_ckpt,
+            pretrained=True,
+            cache_dir=helpers.get_cache_dir(),
+        )
+        self.model.reset_classifier(0, global_pool='')  # Remove both classifier and default pool
+        self.model.eval()
+
+        # Store model name for logging
+        self.name = f"vit/{vit_ckpt}"
+
+    def get_residuals(self) -> list[torch.nn.Module]:
+        return self.model.blocks
+
+    def get_patches(self, n_patches_per_img: int) -> slice:
+        n_reg = self.model.num_reg_tokens
+        patches = torch.cat((
+            torch.tensor([0]),  # CLS token
+            torch.arange(n_reg + 1, n_reg + 1 + n_patches_per_img),  # patches
+        ))
+        return patches
+
+    def forward(
+        self, batch: Float[Tensor, "batch 3 width height"]
+    ) -> Float[Tensor, "batch patches dim"]:
+        result = self.model(batch)
+        return result
+
+
+@jaxtyped(typechecker=beartype.beartype)
 class Moondream2(torch.nn.Module):
     """
     Moondream2 has 14x14 pixel patches. For a 378x378 image (as we use here), this is 27x27 patches for a total of 729, with no [CLS] token.
@@ -261,6 +302,8 @@ def make_vit(vit_family: str, vit_ckpt: str):
         return Siglip(vit_ckpt)
     elif vit_family == "dinov2":
         return DinoV2(vit_ckpt)
+    elif vit_family == "vit":
+        return Vit(vit_ckpt)
     elif vit_family == "moondream2":
         return Moondream2(vit_ckpt)
     else:
@@ -295,6 +338,25 @@ def make_img_transform(vit_family: str, vit_ckpt: str) -> Callable:
             v2.Normalize(mean=[0.4850, 0.4560, 0.4060], std=[0.2290, 0.2240, 0.2250]),
         ])
 
+    elif vit_family == "vit":
+        from torchvision.transforms import v2
+        import timm
+
+        # Get the default config for this model
+        data_config = timm.data.resolve_model_data_config(vit_ckpt)
+
+        # If we can get the transform from timm, use that
+        if data_config is not None:
+            return timm.data.create_transform(**data_config, is_training=False)
+
+        # Otherwise, use a standard ImageNet transform as fallback
+        return v2.Compose([
+            v2.Resize(size=256),
+            v2.CenterCrop(size=(224, 224)),
+            v2.ToImage(),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
     elif vit_family == "moondream2":
         from torchvision.transforms import v2
 
@@ -564,6 +626,8 @@ def setup(cfg: config.Activations):
         setup_imagefolder(cfg)
     elif isinstance(cfg.data, config.Ade20kDataset):
         setup_ade20k(cfg)
+    elif isinstance(cfg.data, config.WebDataset):
+        setup_webdataset(cfg)
     else:
         typing.assert_never(cfg.data)
 
@@ -577,6 +641,14 @@ def setup_imagenet(cfg: config.Activations):
 def setup_imagefolder(cfg: config.Activations):
     assert isinstance(cfg.data, config.ImageFolderDataset)
     logger.info("No dataset-specific setup for ImageFolder.")
+
+
+@beartype.beartype
+def setup_webdataset(cfg: config.Activations):
+    assert isinstance(cfg.data, config.WebDataset)
+    # Create cache directory if it doesn't exist
+    os.makedirs(cfg.data.cache_dir, exist_ok=True)
+    logger.info(f"Created cache directory at {cfg.data.cache_dir} for WebDataset.")
 
 
 @beartype.beartype
@@ -607,6 +679,8 @@ def get_dataset(cfg: config.DatasetConfig, *, img_transform):
         return Ade20k(cfg, img_transform=img_transform)
     elif isinstance(cfg, config.ImageFolderDataset):
         return ImageFolder(cfg.root, transform=img_transform)
+    elif isinstance(cfg, config.WebDataset):
+        return WebDatasetWrapper(cfg, img_transform=img_transform)
     else:
         typing.assert_never(cfg)
 
@@ -625,7 +699,7 @@ def get_dataloader(cfg: config.Activations, *, img_transform=None):
     """
     if isinstance(
         cfg.data,
-        (config.ImagenetDataset, config.ImageFolderDataset, config.Ade20kDataset),
+        (config.ImagenetDataset, config.ImageFolderDataset, config.WebDataset, config.Ade20kDataset),
     ):
         dataloader = get_default_dataloader(cfg, img_transform=img_transform)
     else:
@@ -713,6 +787,76 @@ class ImageFolder(torchvision.datasets.ImageFolder):
             "label": self.classes[target],
             "index": index,
         }
+
+
+@beartype.beartype
+class WebDatasetWrapper(torch.utils.data.IterableDataset):
+    """
+    Wrapper for WebDataset to make it compatible with the activations recording process.
+    """
+
+    def __init__(self, cfg: config.WebDataset, *, img_transform=None):
+        import webdataset as wds
+        import glob
+
+        super().__init__()
+        self.cfg = cfg
+        self.img_transform = img_transform
+
+        if cfg.handler == "warn":
+            handler = wds.warn_and_continue
+        elif cfg.handler == "error":
+            handler = wds.reraise_exception
+        elif cfg.handler == "skip":
+            handler = wds.ignore_and_continue
+
+        # Create the WebDataset pipeline
+        self.dataset = (
+            wds.WebDataset(
+                sorted(glob.glob(cfg.urls)),
+                handler=handler,
+                shardshuffle=False,
+                cache_dir=cfg.cache_dir,
+                cache_size=cfg.cache_size,
+            )
+            .decode("pil")
+            .to_tuple(cfg.image_key, cfg.target_key, cfg.meta_key)
+            .map_tuple(self._process_image, self._process_target, lambda x: x)
+        )
+
+        # Add a counter for indexing
+        self._index = 0
+
+    def _process_image(self, img):
+        # Apply transforms if available
+        if self.img_transform is not None:
+            img = self.img_transform(img)
+
+        return img
+
+    def _process_target(self, target):
+        if isinstance(target, str) and target.isdigit():
+            return int(target)
+        return None
+
+    def __iter__(self):
+        self._index = 0
+        for image, target, meta in self.dataset:
+            label = target
+            if isinstance(meta, dict):
+                if target is None and "label" in meta:
+                    label = target = meta["label"]
+
+                if "classname" in meta:
+                    label = meta["classname"]
+ 
+            yield {
+                "image": image,
+                "index": self._index,
+                "target": target,
+                "label": label,
+            }
+            self._index += 1
 
 
 @beartype.beartype

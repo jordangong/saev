@@ -19,6 +19,8 @@ dependencies = [
     "torch>=2.5.0",
     "tqdm>=4.66.5",
     "tyro>=0.8.12",
+    "wandb>=0.19.10",
+    "webdataset>=0.2.111",
 ]
 
 [project.urls]

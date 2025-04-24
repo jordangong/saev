@@ -76,7 +76,71 @@ class Ade20kDataset:
             return 20210
 
 
-DatasetConfig = ImagenetDataset | ImageFolderDataset | Ade20kDataset
+@beartype.beartype
+@dataclasses.dataclass(frozen=True)
+class WebDataset:
+    """Configuration for WebDataset."""
+
+    urls: str = os.path.join(".", "data", "*.tar")
+    """Path pattern to WebDataset tar files."""
+    image_key: str = "jpg;jpeg;png;webp"
+    """Key for images in the WebDataset."""
+    target_key: str = "cls;txt"
+    """Key for target in the WebDataset."""
+    meta_key: str = "json"
+    """Key for metadata in the WebDataset."""
+    handler: typing.Literal["warn", "error", "skip"] = "warn"
+    """How to handle errors in the WebDataset."""
+    cache_dir: str = os.path.join(".", "data", "cache")
+    """Directory to cache WebDataset metadata."""
+    cache_size: int = 10000
+    """Number of samples to cache in memory."""
+
+    @property
+    def n_imgs(self) -> int:
+        """Number of images in the dataset. Calculated by counting files with matching image extensions in all tar archives.
+        Uses the shell command 'tar -tf' for better performance."""
+        import glob
+        import os
+        import subprocess
+        import tqdm
+
+        # Get all tar files matching the pattern
+        tar_files = sorted(glob.glob(self.urls))
+
+        # Parse image extensions to look for
+        img_extensions = self.image_key.split(";")
+        count = 0
+
+        # Process each tar file
+        for tar_path in tqdm.tqdm(tar_files, desc="Counting images"):
+            if not os.path.exists(tar_path):
+                continue
+
+            try:
+                # Use tar -tf command which is much faster than Python's tarfile
+                result = subprocess.run(
+                    ["tar", "-tf", tar_path], capture_output=True, text=True, check=True
+                )
+
+                # Process each line in the output
+                for line in result.stdout.splitlines():
+                    # Check if the file has any of the specified image extensions
+                    if any(line.endswith(f".{ext}") for ext in img_extensions):
+                        count += 1
+
+            except subprocess.CalledProcessError as e:
+                # Handle errors based on the handler setting
+                if self.handler == "error":
+                    raise RuntimeError(f"Error processing {tar_path}: {e}")
+                elif self.handler == "warn":
+                    print(f"Warning: Error processing {tar_path}: {e}")
+                # Skip file if handler is "skip" or "warn"
+
+        return count
+
+
+DatasetConfig = ImagenetDataset | ImageFolderDataset | Ade20kDataset | WebDataset
 
 
 @beartype.beartype
@@ -90,7 +154,7 @@ class Activations:
     """Which dataset to use."""
     dump_to: str = os.path.join(".", "shards")
     """Where to write shards."""
-    vit_family: typing.Literal["clip", "siglip", "dinov2", "moondream2"] = "clip"
+    vit_family: typing.Literal["clip", "siglip", "dinov2", "moondream2", "vit"] = "clip"
     """Which model family."""
     vit_ckpt: str = "ViT-L-14/openai"
     """Specific model checkpoint."""

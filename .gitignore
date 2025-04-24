@@ -9,11 +9,13 @@ artifacts/
 checkpoints/
 logs/
 .aider*
+.vscode/
 .env
 .DS_Store
 tmp/
 elm-stuff/
 data/
+shards/
 
 # Testing
 .coverage
