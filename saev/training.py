@@ -11,10 +11,9 @@ import beartype
 import einops
 import numpy as np
 import torch
+import wandb
 from jaxtyping import Float
 from torch import Tensor
-
-import wandb
 
 from . import activations, config, helpers, nn
 
@@ -156,9 +155,6 @@ def train(
     if len(split_cfgs(cfgs)) != 1:
         raise ValueError("Configs are not parallelizeable: {cfgs}.")
 
-    err_msg = "ghost grads are disabled in current codebase."
-    assert all(not c.sae.ghost_grads for c in cfgs), err_msg
-
     logger.info("Parallelizing %d runs.", len(cfgs))
 
     cfg = cfgs[0]
@@ -210,7 +206,6 @@ def train(
                         "losses/mse": loss.mse.item(),
                         "losses/l1": loss.l1.item(),
                         "losses/sparsity": loss.sparsity.item(),
-                        "losses/ghost_grad": loss.ghost_grad.item(),
                         "losses/loss": loss.loss.item(),
                         "metrics/l0": loss.l0.item(),
                         "metrics/l1": loss.l1.item(),

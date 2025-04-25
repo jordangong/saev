@@ -56,29 +56,19 @@ def test_split_cfgs_on_multiple_keys_with_multiple_per_key():
 
 def test_split_cfgs_no_bad_keys():
     cfgs = [
-        config.Train(n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=1e-4)),
-        config.Train(n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=2e-4)),
-        config.Train(n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=3e-4)),
-        config.Train(n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=4e-4)),
-        config.Train(n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=5e-4)),
+        config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=1e-4)),
+        config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=2e-4)),
+        config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=3e-4)),
+        config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=4e-4)),
+        config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=5e-4)),
     ]
     expected = [
         [
-            config.Train(
-                n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=1e-4)
-            ),
-            config.Train(
-                n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=2e-4)
-            ),
-            config.Train(
-                n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=3e-4)
-            ),
-            config.Train(
-                n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=4e-4)
-            ),
-            config.Train(
-                n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=5e-4)
-            ),
+            config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=1e-4)),
+            config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=2e-4)),
+            config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=3e-4)),
+            config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=4e-4)),
+            config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=5e-4)),
         ]
     ]
 

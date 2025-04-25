@@ -9,30 +9,30 @@ import torch
 from jaxtyping import Float
 from torch import Tensor
 
-from . import nn
+from . import objectives
 
 
-def test_safe_mse_same():
+def test_mse_same():
     x = torch.ones((45, 12), dtype=torch.float)
     x_hat = torch.ones((45, 12), dtype=torch.float)
     expected = torch.zeros((45, 12), dtype=torch.float)
-    actual = nn.safe_mse(x_hat, x)
+    actual = objectives.mean_squared_err(x_hat, x)
     torch.testing.assert_close(actual, expected)
 
 
-def test_safe_mse_zero_x_hat():
+def test_mse_zero_x_hat():
     x = torch.ones((3, 2), dtype=torch.float)
     x_hat = torch.zeros((3, 2), dtype=torch.float)
     expected = torch.ones((3, 2), dtype=torch.float)
-    actual = nn.safe_mse(x_hat, x, norm=False)
+    actual = objectives.mean_squared_err(x_hat, x, norm=False)
     torch.testing.assert_close(actual, expected)
 
 
-def test_safe_mse_nonzero():
+def test_mse_nonzero():
     x = torch.full((3, 2), 3, dtype=torch.float)
     x_hat = torch.ones((3, 2), dtype=torch.float)
-    expected = nn.ref_mse(x_hat, x)
-    actual = nn.safe_mse(x_hat, x)
+    expected = objectives.ref_mean_squared_err(x_hat, x)
+    actual = objectives.mean_squared_err(x_hat, x)
     torch.testing.assert_close(actual, expected)
 
 
@@ -40,10 +40,10 @@ def test_safe_mse_large_x():
     x = torch.full((3, 2), 3e28, dtype=torch.float)
     x_hat = torch.ones((3, 2), dtype=torch.float)
 
-    ref = nn.ref_mse(x_hat, x)
+    ref = objectives.ref_mean_squared_err(x_hat, x)
     assert ref.isnan().any()
 
-    safe = nn.safe_mse(x_hat, x)
+    safe = objectives.mean_squared_err(x_hat, x)
     assert not safe.isnan().any()
 
 
@@ -57,6 +57,6 @@ def test_safe_mse_hypothesis(x_hat: Float[Tensor, "1 2 3"], x: Float[Tensor, "1 
     hypothesis.assume((torch.linalg.norm(x, axis=-1) > 1e-15).all())
     hypothesis.assume(not x.isinf().all())
 
-    expected = nn.ref_mse(x_hat, x)
-    actual = nn.safe_mse(x_hat, x)
+    expected = objectives.ref_mean_squared_err(x_hat, x)
+    actual = objectives.mean_squared_err(x_hat, x)
     torch.testing.assert_close(actual, expected)

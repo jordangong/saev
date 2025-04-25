@@ -41,14 +41,16 @@ ignore = ["F722"]
 
 [tool.uv]
 package = true
-dev-dependencies = [
+default-groups = "all"
+
+[dependency-groups]
+dev = [
     "hypothesis>=6.119.0",
     "hypothesis-torch>=0.8.4",
     "pdoc3>=0.11.1",
     "pytest>=8.3.3",
     "pytest-xdist>=3.6.1",
     "gradio>=3.36.1",
-    "pyvips>=2.2.3",
     "huggingface-hub>=0.26.5",
     "ruff>=0.8.2",
     "pytest-cov>=6.1.1",
