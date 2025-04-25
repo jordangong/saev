@@ -646,9 +646,7 @@ def setup_imagefolder(cfg: config.Activations):
 @beartype.beartype
 def setup_webdataset(cfg: config.Activations):
     assert isinstance(cfg.data, config.WebDataset)
-    # Create cache directory if it doesn't exist
-    os.makedirs(cfg.data.cache_dir, exist_ok=True)
-    logger.info(f"Created cache directory at {cfg.data.cache_dir} for WebDataset.")
+    logger.info("No dataset-specific setup for WebDataset.")
 
 
 @beartype.beartype
@@ -816,8 +814,6 @@ class WebDatasetWrapper(torch.utils.data.IterableDataset):
                 sorted(glob.glob(cfg.urls)),
                 handler=handler,
                 shardshuffle=False,
-                cache_dir=cfg.cache_dir,
-                cache_size=cfg.cache_size,
             )
             .decode("pil")
             .to_tuple(cfg.image_key, cfg.target_key, cfg.meta_key)

@@ -91,10 +91,6 @@ class WebDataset:
     """Key for metadata in the WebDataset."""
     handler: typing.Literal["warn", "error", "skip"] = "warn"
     """How to handle errors in the WebDataset."""
-    cache_dir: str = os.path.join(".", "data", "cache")
-    """Directory to cache WebDataset metadata."""
-    cache_size: int = 10000
-    """Number of samples to cache in memory."""
 
     @property
     def n_imgs(self) -> int:
