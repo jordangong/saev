@@ -41,158 +41,29 @@ hljs.highlightAll();
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="saev.app.data.get_img_v_raw"><code class="name flex">
-<span>def <span class="ident">get_img_v_raw</span></span>(<span>key: str, i: int) ‑> tuple[pyvips.vimage.Image, str]</span>
+<dt id="saev.app.data.get_img_raw"><code class="name flex">
+<span>def <span class="ident">get_img_raw</span></span>(<span>key: str, i: int) ‑> tuple[PIL.Image.Image, str]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Get raw image and processed label from dataset.</p>
 <h2 id="returns">Returns</h2>
-<p>Tuple of pyvips.Image and classname.</p></div>
+<p>Tuple of Image.Image and classname.</p></div>
 </dd>
-<dt id="saev.app.data.pil_to_vips"><code class="name flex">
-<span>def <span class="ident">pil_to_vips</span></span>(<span>img_p: PIL.Image.Image) ‑> pyvips.vimage.Image</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Convert a PIL Image to a pyvips Image.</p></div>
-</dd>
-<dt id="saev.app.data.to_sized"><code class="name flex">
-<span>def <span class="ident">to_sized</span></span>(<span>img_v_raw: pyvips.vimage.Image, min_px: int, crop_px: tuple[int, int]) ‑> pyvips.vimage.Image</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Convert raw vips image to standard model input size (resize + crop).</p></div>
-</dd>
-<dt id="saev.app.data.vips_to_base64"><code class="name flex">
-<span>def <span class="ident">vips_to_base64</span></span>(<span>img_v: pyvips.vimage.Image) ‑> str</span>
+<dt id="saev.app.data.img_to_b64"><code class="name flex">
+<span>def <span class="ident">img_to_b64</span></span>(<span>img: PIL.Image.Image) ‑> str</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="saev.app.data.to_sized"><code class="name flex">
+<span>def <span class="ident">to_sized</span></span>(<span>img_raw: PIL.Image.Image, min_px: int, crop_px: tuple[int, int]) ‑> PIL.Image.Image</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convert raw vips image to standard model input size (resize + crop).</p></div>
+</dd>
 </dl>
 </section>
 <section>
-<h2 class="section-title" id="header-classes">Classes</h2>
-<dl>
-<dt id="saev.app.data.VipsImageFolder"><code class="flex name class">
-<span>class <span class="ident">VipsImageFolder</span></span>
-<span>(</span><span>root: str,<br>transform: Callable | None = None,<br>target_transform: Callable | None = None)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Clone of ImageFolder that returns pyvips.Image instead of PIL.Image.Image.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class VipsImageFolder(torchvision.datasets.ImageFolder):
-    &#34;&#34;&#34;
-    Clone of ImageFolder that returns pyvips.Image instead of PIL.Image.Image.
-    &#34;&#34;&#34;
-
-    def __init__(
-        self,
-        root: str,
-        transform: typing.Callable | None = None,
-        target_transform: typing.Callable | None = None,
-    ):
-        super().__init__(
-            root,
-            transform=transform,
-            target_transform=target_transform,
-            loader=self._vips_loader,
-        )
-
-    @staticmethod
-    def _vips_loader(path: str) -&gt; torch.Tensor:
-        &#34;&#34;&#34;Load and convert image to tensor using pyvips.&#34;&#34;&#34;
-        image = pyvips.Image.new_from_file(path, access=&#34;random&#34;)
-        return image
-
-    def __getitem__(self, index: int) -&gt; dict[str, object]:
-        &#34;&#34;&#34;
-        Args:
-            index: Index
-
-        Returns:
-            dict with keys &#39;image&#39;, &#39;index&#39;, &#39;target&#39; and &#39;label&#39;.
-        &#34;&#34;&#34;
-        path, target = self.samples[index]
-        sample = self.loader(path)
-        if self.transform is not None:
-            sample = self.transform(sample)
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-
-        return {
-            &#34;image&#34;: sample,
-            &#34;target&#34;: target,
-            &#34;label&#34;: self.classes[target],
-            &#34;index&#34;: index,
-        }</code></pre>
-</details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>torchvision.datasets.folder.ImageFolder</li>
-<li>torchvision.datasets.folder.DatasetFolder</li>
-<li>torchvision.datasets.vision.VisionDataset</li>
-<li>torch.utils.data.dataset.Dataset</li>
-<li>typing.Generic</li>
-</ul>
-</dd>
-<dt id="saev.app.data.VipsImagenet"><code class="flex name class">
-<span>class <span class="ident">VipsImagenet</span></span>
-<span>(</span><span>cfg: <a title="saev.config.ImagenetDataset" href="../config.html#saev.config.ImagenetDataset">ImagenetDataset</a>,<br>*,<br>img_transform=None)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>An abstract class representing a :class:<code>Dataset</code>.</p>
-<p>All datasets that represent a map from keys to data samples should subclass
-it. All subclasses should overwrite :meth:<code>__getitem__</code>, supporting fetching a
-data sample for a given key. Subclasses could also optionally overwrite
-:meth:<code>__len__</code>, which is expected to return the size of the dataset by many
-:class:<code>~torch.utils.data.Sampler</code> implementations and the default options
-of :class:<code>~torch.utils.data.DataLoader</code>. Subclasses could also
-optionally implement :meth:<code>__getitems__</code>, for speedup batched samples
-loading. This method accepts list of indices of samples of batch and returns
-list of samples.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>:class:<code>~torch.utils.data.DataLoader</code> by default constructs an index
-sampler that yields integral indices.
-To make it work with a map-style
-dataset with non-integral indices/keys, a custom sampler must be provided.</p>
-</div></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@beartype.beartype
-class VipsImagenet(activations.Imagenet):
-    def __getitem__(self, i):
-        example = self.hf_dataset[i]
-        example[&#34;index&#34;] = i
-
-        example[&#34;image&#34;] = example[&#34;image&#34;].convert(&#34;RGB&#34;)
-        # Convert to pyvips
-        example[&#34;image&#34;] = pyvips.Image.new_from_memory(
-            example[&#34;image&#34;].tobytes(),
-            example[&#34;image&#34;].width,
-            example[&#34;image&#34;].height,
-            3,  # bands (RGB)
-            &#34;uchar&#34;,
-        )
-        if self.img_transform:
-            example[&#34;image&#34;] = self.img_transform(example[&#34;image&#34;])
-        example[&#34;target&#34;] = example.pop(&#34;label&#34;)
-        example[&#34;label&#34;] = self.labels[example[&#34;target&#34;]]
-
-        return example</code></pre>
-</details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="saev.activations.Imagenet" href="../activations.html#saev.activations.Imagenet">Imagenet</a></li>
-<li>torch.utils.data.dataset.Dataset</li>
-<li>typing.Generic</li>
-</ul>
-</dd>
-</dl>
 </section>
 </article>
 <nav id="sidebar">
@@ -208,20 +79,9 @@ class VipsImagenet(activations.Imagenet):
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="saev.app.data.get_datasets" href="#saev.app.data.get_datasets">get_datasets</a></code></li>
-<li><code><a title="saev.app.data.get_img_v_raw" href="#saev.app.data.get_img_v_raw">get_img_v_raw</a></code></li>
-<li><code><a title="saev.app.data.pil_to_vips" href="#saev.app.data.pil_to_vips">pil_to_vips</a></code></li>
+<li><code><a title="saev.app.data.get_img_raw" href="#saev.app.data.get_img_raw">get_img_raw</a></code></li>
+<li><code><a title="saev.app.data.img_to_b64" href="#saev.app.data.img_to_b64">img_to_b64</a></code></li>
 <li><code><a title="saev.app.data.to_sized" href="#saev.app.data.to_sized">to_sized</a></code></li>
-<li><code><a title="saev.app.data.vips_to_base64" href="#saev.app.data.vips_to_base64">vips_to_base64</a></code></li>
-</ul>
-</li>
-<li><h3><a href="#header-classes">Classes</a></h3>
-<ul>
-<li>
-<h4><code><a title="saev.app.data.VipsImageFolder" href="#saev.app.data.VipsImageFolder">VipsImageFolder</a></code></h4>
-</li>
-<li>
-<h4><code><a title="saev.app.data.VipsImagenet" href="#saev.app.data.VipsImagenet">VipsImagenet</a></code></h4>
-</li>
 </ul>
 </li>
 </ul>

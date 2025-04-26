@@ -70,7 +70,7 @@ Might be expanded in the future to support pseudo-random sampling from distribut
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Activations:
     &#34;&#34;&#34;
     Configuration for calculating and saving ViT activations.
@@ -114,7 +114,7 @@ class Activations:
     log_to: str = &#34;./logs&#34;
     &#34;&#34;&#34;Where to log Slurm job stdout/stderr.&#34;&#34;&#34;</code></pre>
 </details>
-<h3>Class variables</h3>
+<h3>Instance variables</h3>
 <dl>
 <dt id="saev.config.Activations.cls_token"><code class="name">var <span class="ident">cls_token</span> : bool</code></dt>
 <dd>
@@ -197,7 +197,7 @@ class Activations:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Ade20kDataset:
     &#34;&#34;&#34; &#34;&#34;&#34;
 
@@ -213,17 +213,6 @@ class Ade20kDataset:
         else:
             return 20210</code></pre>
 </details>
-<h3>Class variables</h3>
-<dl>
-<dt id="saev.config.Ade20kDataset.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
-<dd>
-<div class="desc"><p>Where the class folders with images are stored.</p></div>
-</dd>
-<dt id="saev.config.Ade20kDataset.split"><code class="name">var <span class="ident">split</span> : Literal['training', 'validation']</code></dt>
-<dd>
-<div class="desc"><p>Data split.</p></div>
-</dd>
-</dl>
 <h3>Instance variables</h3>
 <dl>
 <dt id="saev.config.Ade20kDataset.n_imgs"><code class="name">prop <span class="ident">n_imgs</span> : int</code></dt>
@@ -241,6 +230,14 @@ def n_imgs(self) -&gt; int:
         return 20210</code></pre>
 </details>
 </dd>
+<dt id="saev.config.Ade20kDataset.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Where the class folders with images are stored.</p></div>
+</dd>
+<dt id="saev.config.Ade20kDataset.split"><code class="name">var <span class="ident">split</span> : Literal['training', 'validation']</code></dt>
+<dd>
+<div class="desc"><p>Data split.</p></div>
+</dd>
 </dl>
 </dd>
 <dt id="saev.config.DataLoad"><code class="flex name class">
@@ -254,7 +251,7 @@ def n_imgs(self) -&gt; int:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class DataLoad:
     &#34;&#34;&#34;
     Configuration for loading activation data from disk.
@@ -275,7 +272,7 @@ class DataLoad:
     scale_norm: bool | str = True
     &#34;&#34;&#34;Whether to scale average dataset norm to sqrt(d_vit). If a string, manually load from the filepath.&#34;&#34;&#34;</code></pre>
 </details>
-<h3>Class variables</h3>
+<h3>Instance variables</h3>
 <dl>
 <dt id="saev.config.DataLoad.clamp"><code class="name">var <span class="ident">clamp</span> : float</code></dt>
 <dd>
@@ -318,7 +315,7 @@ class DataLoad:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class ImageFolderDataset:
     &#34;&#34;&#34;Configuration for a generic image folder dataset.&#34;&#34;&#34;
 
@@ -333,13 +330,6 @@ class ImageFolderDataset:
             n += len(files)
         return n</code></pre>
 </details>
-<h3>Class variables</h3>
-<dl>
-<dt id="saev.config.ImageFolderDataset.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
-<dd>
-<div class="desc"><p>Where the class folders with images are stored.</p></div>
-</dd>
-</dl>
 <h3>Instance variables</h3>
 <dl>
 <dt id="saev.config.ImageFolderDataset.n_imgs"><code class="name">prop <span class="ident">n_imgs</span> : int</code></dt>
@@ -358,6 +348,10 @@ def n_imgs(self) -&gt; int:
     return n</code></pre>
 </details>
 </dd>
+<dt id="saev.config.ImageFolderDataset.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Where the class folders with images are stored.</p></div>
+</dd>
 </dl>
 </dd>
 <dt id="saev.config.ImagenetDataset"><code class="flex name class">
@@ -371,7 +365,7 @@ def n_imgs(self) -&gt; int:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class ImagenetDataset:
     &#34;&#34;&#34;Configuration for HuggingFace Imagenet.&#34;&#34;&#34;
 
@@ -390,17 +384,6 @@ class ImagenetDataset:
         )
         return len(dataset)</code></pre>
 </details>
-<h3>Class variables</h3>
-<dl>
-<dt id="saev.config.ImagenetDataset.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
-<dd>
-<div class="desc"><p>Dataset name on HuggingFace. Don't need to change this..</p></div>
-</dd>
-<dt id="saev.config.ImagenetDataset.split"><code class="name">var <span class="ident">split</span> : str</code></dt>
-<dd>
-<div class="desc"><p>Dataset split. For the default ImageNet-1K dataset, can either be 'train', 'validation' or 'test'.</p></div>
-</dd>
-</dl>
 <h3>Instance variables</h3>
 <dl>
 <dt id="saev.config.ImagenetDataset.n_imgs"><code class="name">prop <span class="ident">n_imgs</span> : int</code></dt>
@@ -421,30 +404,82 @@ def n_imgs(self) -&gt; int:
     return len(dataset)</code></pre>
 </details>
 </dd>
+<dt id="saev.config.ImagenetDataset.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Dataset name on HuggingFace. Don't need to change this..</p></div>
+</dd>
+<dt id="saev.config.ImagenetDataset.split"><code class="name">var <span class="ident">split</span> : str</code></dt>
+<dd>
+<div class="desc"><p>Dataset split. For the default ImageNet-1K dataset, can either be 'train', 'validation' or 'test'.</p></div>
+</dd>
 </dl>
 </dd>
-<dt id="saev.config.SparseAutoencoder"><code class="flex name class">
-<span>class <span class="ident">SparseAutoencoder</span></span>
-<span>(</span><span>d_vit: int = 1024,<br>exp_factor: int = 16,<br>sparsity_coeff: float = 0.0004,<br>n_reinit_samples: int = 524288,<br>ghost_grads: bool = False,<br>remove_parallel_grads: bool = True,<br>normalize_w_dec: bool = True,<br>seed: int = 0)</span>
+<dt id="saev.config.JumpRelu"><code class="flex name class">
+<span>class <span class="ident">JumpRelu</span></span>
 </code></dt>
 <dd>
-<div class="desc"><p>SparseAutoencoder(d_vit: int = 1024, exp_factor: int = 16, sparsity_coeff: float = 0.0004, n_reinit_samples: int = 524288, ghost_grads: bool = False, remove_parallel_grads: bool = True, normalize_w_dec: bool = True, seed: int = 0)</p></div>
+<div class="desc"><p>Implementation of the JumpReLU activation function for SAEs. Not implemented.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class SparseAutoencoder:
+@dataclasses.dataclass(frozen=True, slots=True)
+class JumpRelu:
+    &#34;&#34;&#34;Implementation of the JumpReLU activation function for SAEs. Not implemented.&#34;&#34;&#34;
+
+    pass</code></pre>
+</details>
+</dd>
+<dt id="saev.config.Matryoshka"><code class="flex name class">
+<span>class <span class="ident">Matryoshka</span></span>
+<span>(</span><span>n_prefixes: int = 10)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Config for the Matryoshka loss for another arbitrary SAE class.</p>
+<p>Reference code is here: <a href="https://github.com/noanabeshima/matryoshka-saes">https://github.com/noanabeshima/matryoshka-saes</a> and the original reading is <a href="https://sparselatents.com/matryoshka.html">https://sparselatents.com/matryoshka.html</a> and <a href="https://arxiv.org/pdf/2503.17547.">https://arxiv.org/pdf/2503.17547.</a></p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True, slots=True)
+class Matryoshka:
+    &#34;&#34;&#34;
+    Config for the Matryoshka loss for another arbitrary SAE class.
+
+    Reference code is here: https://github.com/noanabeshima/matryoshka-saes and the original reading is https://sparselatents.com/matryoshka.html and https://arxiv.org/pdf/2503.17547.
+    &#34;&#34;&#34;
+
+    n_prefixes: int = 10
+    &#34;&#34;&#34;Number of random length prefixes to use for loss calculation.&#34;&#34;&#34;</code></pre>
+</details>
+<h3>Instance variables</h3>
+<dl>
+<dt id="saev.config.Matryoshka.n_prefixes"><code class="name">var <span class="ident">n_prefixes</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of random length prefixes to use for loss calculation.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="saev.config.Relu"><code class="flex name class">
+<span>class <span class="ident">Relu</span></span>
+<span>(</span><span>d_vit: int = 1024,<br>exp_factor: int = 16,<br>n_reinit_samples: int = 524288,<br>remove_parallel_grads: bool = True,<br>normalize_w_dec: bool = True,<br>seed: int = 0)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Relu(d_vit: int = 1024, exp_factor: int = 16, n_reinit_samples: int = 524288, remove_parallel_grads: bool = True, normalize_w_dec: bool = True, seed: int = 0)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True, slots=True)
+class Relu:
     d_vit: int = 1024
     exp_factor: int = 16
     &#34;&#34;&#34;Expansion factor for SAE.&#34;&#34;&#34;
-    sparsity_coeff: float = 4e-4
-    &#34;&#34;&#34;How much to weight sparsity loss term.&#34;&#34;&#34;
     n_reinit_samples: int = 1024 * 16 * 32
     &#34;&#34;&#34;Number of samples to use for SAE re-init. Anthropic proposes initializing b_dec to the geometric median of the dataset here: https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder-bias. We use the regular mean.&#34;&#34;&#34;
-    ghost_grads: bool = False
-    &#34;&#34;&#34;Whether to use ghost grads.&#34;&#34;&#34;
     remove_parallel_grads: bool = True
     &#34;&#34;&#34;Whether to remove gradients parallel to W_dec columns (which will be ignored because we force the columns to have unit norm). See https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder-optimization for the original discussion from Anthropic.&#34;&#34;&#34;
     normalize_w_dec: bool = True
@@ -456,44 +491,9 @@ class SparseAutoencoder:
     def d_sae(self) -&gt; int:
         return self.d_vit * self.exp_factor</code></pre>
 </details>
-<h3>Class variables</h3>
-<dl>
-<dt id="saev.config.SparseAutoencoder.d_vit"><code class="name">var <span class="ident">d_vit</span> : int</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="saev.config.SparseAutoencoder.exp_factor"><code class="name">var <span class="ident">exp_factor</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Expansion factor for SAE.</p></div>
-</dd>
-<dt id="saev.config.SparseAutoencoder.ghost_grads"><code class="name">var <span class="ident">ghost_grads</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>Whether to use ghost grads.</p></div>
-</dd>
-<dt id="saev.config.SparseAutoencoder.n_reinit_samples"><code class="name">var <span class="ident">n_reinit_samples</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Number of samples to use for SAE re-init. Anthropic proposes initializing b_dec to the geometric median of the dataset here: <a href="https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder-bias.">https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder-bias.</a> We use the regular mean.</p></div>
-</dd>
-<dt id="saev.config.SparseAutoencoder.normalize_w_dec"><code class="name">var <span class="ident">normalize_w_dec</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>Whether to make sure W_dec has unit norm columns. See <a href="https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder">https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder</a> for original citation.</p></div>
-</dd>
-<dt id="saev.config.SparseAutoencoder.remove_parallel_grads"><code class="name">var <span class="ident">remove_parallel_grads</span> : bool</code></dt>
-<dd>
-<div class="desc"><p>Whether to remove gradients parallel to W_dec columns (which will be ignored because we force the columns to have unit norm). See <a href="https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder-optimization">https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder-optimization</a> for the original discussion from Anthropic.</p></div>
-</dd>
-<dt id="saev.config.SparseAutoencoder.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Random seed.</p></div>
-</dd>
-<dt id="saev.config.SparseAutoencoder.sparsity_coeff"><code class="name">var <span class="ident">sparsity_coeff</span> : float</code></dt>
-<dd>
-<div class="desc"><p>How much to weight sparsity loss term.</p></div>
-</dd>
-</dl>
 <h3>Instance variables</h3>
 <dl>
-<dt id="saev.config.SparseAutoencoder.d_sae"><code class="name">prop <span class="ident">d_sae</span> : int</code></dt>
+<dt id="saev.config.Relu.d_sae"><code class="name">prop <span class="ident">d_sae</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 <details class="source">
@@ -505,11 +505,35 @@ def d_sae(self) -&gt; int:
     return self.d_vit * self.exp_factor</code></pre>
 </details>
 </dd>
+<dt id="saev.config.Relu.d_vit"><code class="name">var <span class="ident">d_vit</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="saev.config.Relu.exp_factor"><code class="name">var <span class="ident">exp_factor</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Expansion factor for SAE.</p></div>
+</dd>
+<dt id="saev.config.Relu.n_reinit_samples"><code class="name">var <span class="ident">n_reinit_samples</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of samples to use for SAE re-init. Anthropic proposes initializing b_dec to the geometric median of the dataset here: <a href="https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder-bias.">https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder-bias.</a> We use the regular mean.</p></div>
+</dd>
+<dt id="saev.config.Relu.normalize_w_dec"><code class="name">var <span class="ident">normalize_w_dec</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether to make sure W_dec has unit norm columns. See <a href="https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder">https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder</a> for original citation.</p></div>
+</dd>
+<dt id="saev.config.Relu.remove_parallel_grads"><code class="name">var <span class="ident">remove_parallel_grads</span> : bool</code></dt>
+<dd>
+<div class="desc"><p>Whether to remove gradients parallel to W_dec columns (which will be ignored because we force the columns to have unit norm). See <a href="https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder-optimization">https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder-optimization</a> for the original discussion from Anthropic.</p></div>
+</dd>
+<dt id="saev.config.Relu.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Random seed.</p></div>
+</dd>
 </dl>
 </dd>
 <dt id="saev.config.Train"><code class="flex name class">
 <span>class <span class="ident">Train</span></span>
-<span>(</span><span>data: <a title="saev.config.DataLoad" href="#saev.config.DataLoad">DataLoad</a> = &lt;factory&gt;,<br>n_workers: int = 32,<br>n_patches: int = 100000000,<br>sae: <a title="saev.config.SparseAutoencoder" href="#saev.config.SparseAutoencoder">SparseAutoencoder</a> = &lt;factory&gt;,<br>n_sparsity_warmup: int = 0,<br>lr: float = 0.0004,<br>n_lr_warmup: int = 500,<br>sae_batch_size: int = 16384,<br>track: bool = True,<br>wandb_project: str = 'saev',<br>tag: str = '',<br>log_every: int = 25,<br>ckpt_path: str = './checkpoints',<br>device: Literal['cuda', 'cpu'] = 'cuda',<br>seed: int = 42,<br>slurm: bool = False,<br>slurm_acct: str = 'PAS2136',<br>log_to: str = './logs')</span>
+<span>(</span><span>data: <a title="saev.config.DataLoad" href="#saev.config.DataLoad">DataLoad</a> = &lt;factory&gt;,<br>n_workers: int = 32,<br>n_patches: int = 100000000,<br>sae: <a title="saev.config.Relu" href="#saev.config.Relu">Relu</a> | <a title="saev.config.JumpRelu" href="#saev.config.JumpRelu">JumpRelu</a> = &lt;factory&gt;,<br>objective: <a title="saev.config.Vanilla" href="#saev.config.Vanilla">Vanilla</a> | <a title="saev.config.Matryoshka" href="#saev.config.Matryoshka">Matryoshka</a> = &lt;factory&gt;,<br>n_sparsity_warmup: int = 0,<br>lr: float = 0.0004,<br>n_lr_warmup: int = 500,<br>sae_batch_size: int = 16384,<br>track: bool = True,<br>wandb_project: str = 'saev',<br>tag: str = '',<br>log_every: int = 25,<br>ckpt_path: str = './checkpoints',<br>device: Literal['cuda', 'cpu'] = 'cuda',<br>seed: int = 42,<br>slurm: bool = False,<br>slurm_acct: str = 'PAS2136',<br>log_to: str = './logs')</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Configuration for training a sparse autoencoder on a vision transformer.</p></div>
@@ -518,7 +542,7 @@ def d_sae(self) -&gt; int:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Train:
     &#34;&#34;&#34;
     Configuration for training a sparse autoencoder on a vision transformer.
@@ -530,8 +554,10 @@ class Train:
     &#34;&#34;&#34;Number of dataloader workers.&#34;&#34;&#34;
     n_patches: int = 100_000_000
     &#34;&#34;&#34;Number of SAE training examples.&#34;&#34;&#34;
-    sae: SparseAutoencoder = dataclasses.field(default_factory=SparseAutoencoder)
+    sae: SparseAutoencoder = dataclasses.field(default_factory=Relu)
     &#34;&#34;&#34;SAE configuration.&#34;&#34;&#34;
+    objective: Objective = dataclasses.field(default_factory=Vanilla)
+    &#34;&#34;&#34;SAE loss configuration.&#34;&#34;&#34;
     n_sparsity_warmup: int = 0
     &#34;&#34;&#34;Number of sparsity coefficient warmup steps.&#34;&#34;&#34;
     lr: float = 0.0004
@@ -564,7 +590,7 @@ class Train:
     log_to: str = os.path.join(&#34;.&#34;, &#34;logs&#34;)
     &#34;&#34;&#34;Where to log Slurm job stdout/stderr.&#34;&#34;&#34;</code></pre>
 </details>
-<h3>Class variables</h3>
+<h3>Instance variables</h3>
 <dl>
 <dt id="saev.config.Train.ckpt_path"><code class="name">var <span class="ident">ckpt_path</span> : str</code></dt>
 <dd>
@@ -606,7 +632,11 @@ class Train:
 <dd>
 <div class="desc"><p>Number of dataloader workers.</p></div>
 </dd>
-<dt id="saev.config.Train.sae"><code class="name">var <span class="ident">sae</span> : <a title="saev.config.SparseAutoencoder" href="#saev.config.SparseAutoencoder">SparseAutoencoder</a></code></dt>
+<dt id="saev.config.Train.objective"><code class="name">var <span class="ident">objective</span> : <a title="saev.config.Vanilla" href="#saev.config.Vanilla">Vanilla</a> | <a title="saev.config.Matryoshka" href="#saev.config.Matryoshka">Matryoshka</a></code></dt>
+<dd>
+<div class="desc"><p>SAE loss configuration.</p></div>
+</dd>
+<dt id="saev.config.Train.sae"><code class="name">var <span class="ident">sae</span> : <a title="saev.config.Relu" href="#saev.config.Relu">Relu</a> | <a title="saev.config.JumpRelu" href="#saev.config.JumpRelu">JumpRelu</a></code></dt>
 <dd>
 <div class="desc"><p>SAE configuration.</p></div>
 </dd>
@@ -640,6 +670,30 @@ class Train:
 </dd>
 </dl>
 </dd>
+<dt id="saev.config.Vanilla"><code class="flex name class">
+<span>class <span class="ident">Vanilla</span></span>
+<span>(</span><span>sparsity_coeff: float = 0.0004)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Vanilla(sparsity_coeff: float = 0.0004)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@beartype.beartype
+@dataclasses.dataclass(frozen=True, slots=True)
+class Vanilla:
+    sparsity_coeff: float = 4e-4
+    &#34;&#34;&#34;How much to weight sparsity loss term.&#34;&#34;&#34;</code></pre>
+</details>
+<h3>Instance variables</h3>
+<dl>
+<dt id="saev.config.Vanilla.sparsity_coeff"><code class="name">var <span class="ident">sparsity_coeff</span> : float</code></dt>
+<dd>
+<div class="desc"><p>How much to weight sparsity loss term.</p></div>
+</dd>
+</dl>
+</dd>
 <dt id="saev.config.Visuals"><code class="flex name class">
 <span>class <span class="ident">Visuals</span></span>
 <span>(</span><span>ckpt: str = './checkpoints/sae.pt',<br>data: <a title="saev.config.DataLoad" href="#saev.config.DataLoad">DataLoad</a> = &lt;factory&gt;,<br>images: <a title="saev.config.ImagenetDataset" href="#saev.config.ImagenetDataset">ImagenetDataset</a> | <a title="saev.config.ImageFolderDataset" href="#saev.config.ImageFolderDataset">ImageFolderDataset</a> | <a title="saev.config.Ade20kDataset" href="#saev.config.Ade20kDataset">Ade20kDataset</a> = &lt;factory&gt;,<br>top_k: int = 128,<br>n_workers: int = 16,<br>topk_batch_size: int = 16384,<br>sae_batch_size: int = 16384,<br>epsilon: float = 1e-09,<br>sort_by: Literal['cls', 'img', 'patch'] = 'patch',<br>device: str = 'cuda',<br>dump_to: str = './data',<br>log_freq_range: tuple[float, float] = (-6.0, -2.0),<br>log_value_range: tuple[float, float] = (-1.0, 1.0),<br>include_latents: list[int] = &lt;factory&gt;,<br>n_distributions: int = 25,<br>percentile: int = 99,<br>n_latents: int = 400,<br>seed: int = 42)</span>
@@ -651,7 +705,7 @@ class Train:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Visuals:
     &#34;&#34;&#34;Configuration for generating visuals from trained SAEs.&#34;&#34;&#34;
 
@@ -724,7 +778,7 @@ class Visuals:
     def percentiles_fpath(self) -&gt; str:
         return os.path.join(self.root, f&#34;percentiles_p{self.percentile}.pt&#34;)</code></pre>
 </details>
-<h3>Class variables</h3>
+<h3>Instance variables</h3>
 <dl>
 <dt id="saev.config.Visuals.ckpt"><code class="name">var <span class="ident">ckpt</span> : str</code></dt>
 <dd>
@@ -737,6 +791,18 @@ class Visuals:
 <dt id="saev.config.Visuals.device"><code class="name">var <span class="ident">device</span> : str</code></dt>
 <dd>
 <div class="desc"><p>Which accelerator to use.</p></div>
+</dd>
+<dt id="saev.config.Visuals.distributions_fpath"><code class="name">prop <span class="ident">distributions_fpath</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def distributions_fpath(self) -&gt; str:
+    return os.path.join(self.root, &#34;distributions.pt&#34;)</code></pre>
+</details>
 </dd>
 <dt id="saev.config.Visuals.dump_to"><code class="name">var <span class="ident">dump_to</span> : str</code></dt>
 <dd>
@@ -762,6 +828,18 @@ class Visuals:
 <dd>
 <div class="desc"><p>Log10 frequency range for which to save images.</p></div>
 </dd>
+<dt id="saev.config.Visuals.mean_values_fpath"><code class="name">prop <span class="ident">mean_values_fpath</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def mean_values_fpath(self) -&gt; str:
+    return os.path.join(self.root, &#34;mean_values.pt&#34;)</code></pre>
+</details>
+</dd>
 <dt id="saev.config.Visuals.n_distributions"><code class="name">var <span class="ident">n_distributions</span> : int</code></dt>
 <dd>
 <div class="desc"><p>Number of features to save distributions for.</p></div>
@@ -777,53 +855,6 @@ class Visuals:
 <dt id="saev.config.Visuals.percentile"><code class="name">var <span class="ident">percentile</span> : int</code></dt>
 <dd>
 <div class="desc"><p>Percentile to estimate for outlier detection.</p></div>
-</dd>
-<dt id="saev.config.Visuals.sae_batch_size"><code class="name">var <span class="ident">sae_batch_size</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Batch size for SAE inference.</p></div>
-</dd>
-<dt id="saev.config.Visuals.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Random seed.</p></div>
-</dd>
-<dt id="saev.config.Visuals.sort_by"><code class="name">var <span class="ident">sort_by</span> : Literal['cls', 'img', 'patch']</code></dt>
-<dd>
-<div class="desc"><p>How to find the top k images. 'cls' picks images where the SAE latents of the ViT's [CLS] token are maximized without any patch highligting. 'img' picks images that maximize the sum of an SAE latent over all patches in the image, highlighting the patches. 'patch' pickes images that maximize an SAE latent over all patches (not summed), highlighting the patches and only showing unique images.</p></div>
-</dd>
-<dt id="saev.config.Visuals.top_k"><code class="name">var <span class="ident">top_k</span> : int</code></dt>
-<dd>
-<div class="desc"><p>How many images per SAE feature to store.</p></div>
-</dd>
-<dt id="saev.config.Visuals.topk_batch_size"><code class="name">var <span class="ident">topk_batch_size</span> : int</code></dt>
-<dd>
-<div class="desc"><p>Number of examples to apply top-k op to.</p></div>
-</dd>
-</dl>
-<h3>Instance variables</h3>
-<dl>
-<dt id="saev.config.Visuals.distributions_fpath"><code class="name">prop <span class="ident">distributions_fpath</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@property
-def distributions_fpath(self) -&gt; str:
-    return os.path.join(self.root, &#34;distributions.pt&#34;)</code></pre>
-</details>
-</dd>
-<dt id="saev.config.Visuals.mean_values_fpath"><code class="name">prop <span class="ident">mean_values_fpath</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@property
-def mean_values_fpath(self) -&gt; str:
-    return os.path.join(self.root, &#34;mean_values.pt&#34;)</code></pre>
-</details>
 </dd>
 <dt id="saev.config.Visuals.percentiles_fpath"><code class="name">prop <span class="ident">percentiles_fpath</span> : str</code></dt>
 <dd>
@@ -849,6 +880,18 @@ def root(self) -&gt; str:
     return os.path.join(self.dump_to, f&#34;sort_by_{self.sort_by}&#34;)</code></pre>
 </details>
 </dd>
+<dt id="saev.config.Visuals.sae_batch_size"><code class="name">var <span class="ident">sae_batch_size</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Batch size for SAE inference.</p></div>
+</dd>
+<dt id="saev.config.Visuals.seed"><code class="name">var <span class="ident">seed</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Random seed.</p></div>
+</dd>
+<dt id="saev.config.Visuals.sort_by"><code class="name">var <span class="ident">sort_by</span> : Literal['cls', 'img', 'patch']</code></dt>
+<dd>
+<div class="desc"><p>How to find the top k images. 'cls' picks images where the SAE latents of the ViT's [CLS] token are maximized without any patch highligting. 'img' picks images that maximize the sum of an SAE latent over all patches in the image, highlighting the patches. 'patch' pickes images that maximize an SAE latent over all patches (not summed), highlighting the patches and only showing unique images.</p></div>
+</dd>
 <dt id="saev.config.Visuals.sparsity_fpath"><code class="name">prop <span class="ident">sparsity_fpath</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
@@ -873,6 +916,10 @@ def top_img_i_fpath(self) -&gt; str:
     return os.path.join(self.root, &#34;top_img_i.pt&#34;)</code></pre>
 </details>
 </dd>
+<dt id="saev.config.Visuals.top_k"><code class="name">var <span class="ident">top_k</span> : int</code></dt>
+<dd>
+<div class="desc"><p>How many images per SAE feature to store.</p></div>
+</dd>
 <dt id="saev.config.Visuals.top_patch_i_fpath"><code class="name">prop <span class="ident">top_patch_i_fpath</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
@@ -896,6 +943,10 @@ def top_patch_i_fpath(self) -&gt; str:
 def top_values_fpath(self) -&gt; str:
     return os.path.join(self.root, &#34;top_values.pt&#34;)</code></pre>
 </details>
+</dd>
+<dt id="saev.config.Visuals.topk_batch_size"><code class="name">var <span class="ident">topk_batch_size</span> : int</code></dt>
+<dd>
+<div class="desc"><p>Number of examples to apply top-k op to.</p></div>
 </dd>
 </dl>
 </dd>
@@ -980,17 +1031,24 @@ def top_values_fpath(self) -&gt; str:
 </ul>
 </li>
 <li>
-<h4><code><a title="saev.config.SparseAutoencoder" href="#saev.config.SparseAutoencoder">SparseAutoencoder</a></code></h4>
+<h4><code><a title="saev.config.JumpRelu" href="#saev.config.JumpRelu">JumpRelu</a></code></h4>
+</li>
+<li>
+<h4><code><a title="saev.config.Matryoshka" href="#saev.config.Matryoshka">Matryoshka</a></code></h4>
 <ul class="">
-<li><code><a title="saev.config.SparseAutoencoder.d_sae" href="#saev.config.SparseAutoencoder.d_sae">d_sae</a></code></li>
-<li><code><a title="saev.config.SparseAutoencoder.d_vit" href="#saev.config.SparseAutoencoder.d_vit">d_vit</a></code></li>
-<li><code><a title="saev.config.SparseAutoencoder.exp_factor" href="#saev.config.SparseAutoencoder.exp_factor">exp_factor</a></code></li>
-<li><code><a title="saev.config.SparseAutoencoder.ghost_grads" href="#saev.config.SparseAutoencoder.ghost_grads">ghost_grads</a></code></li>
-<li><code><a title="saev.config.SparseAutoencoder.n_reinit_samples" href="#saev.config.SparseAutoencoder.n_reinit_samples">n_reinit_samples</a></code></li>
-<li><code><a title="saev.config.SparseAutoencoder.normalize_w_dec" href="#saev.config.SparseAutoencoder.normalize_w_dec">normalize_w_dec</a></code></li>
-<li><code><a title="saev.config.SparseAutoencoder.remove_parallel_grads" href="#saev.config.SparseAutoencoder.remove_parallel_grads">remove_parallel_grads</a></code></li>
-<li><code><a title="saev.config.SparseAutoencoder.seed" href="#saev.config.SparseAutoencoder.seed">seed</a></code></li>
-<li><code><a title="saev.config.SparseAutoencoder.sparsity_coeff" href="#saev.config.SparseAutoencoder.sparsity_coeff">sparsity_coeff</a></code></li>
+<li><code><a title="saev.config.Matryoshka.n_prefixes" href="#saev.config.Matryoshka.n_prefixes">n_prefixes</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="saev.config.Relu" href="#saev.config.Relu">Relu</a></code></h4>
+<ul class="">
+<li><code><a title="saev.config.Relu.d_sae" href="#saev.config.Relu.d_sae">d_sae</a></code></li>
+<li><code><a title="saev.config.Relu.d_vit" href="#saev.config.Relu.d_vit">d_vit</a></code></li>
+<li><code><a title="saev.config.Relu.exp_factor" href="#saev.config.Relu.exp_factor">exp_factor</a></code></li>
+<li><code><a title="saev.config.Relu.n_reinit_samples" href="#saev.config.Relu.n_reinit_samples">n_reinit_samples</a></code></li>
+<li><code><a title="saev.config.Relu.normalize_w_dec" href="#saev.config.Relu.normalize_w_dec">normalize_w_dec</a></code></li>
+<li><code><a title="saev.config.Relu.remove_parallel_grads" href="#saev.config.Relu.remove_parallel_grads">remove_parallel_grads</a></code></li>
+<li><code><a title="saev.config.Relu.seed" href="#saev.config.Relu.seed">seed</a></code></li>
 </ul>
 </li>
 <li>
@@ -1006,6 +1064,7 @@ def top_values_fpath(self) -&gt; str:
 <li><code><a title="saev.config.Train.n_patches" href="#saev.config.Train.n_patches">n_patches</a></code></li>
 <li><code><a title="saev.config.Train.n_sparsity_warmup" href="#saev.config.Train.n_sparsity_warmup">n_sparsity_warmup</a></code></li>
 <li><code><a title="saev.config.Train.n_workers" href="#saev.config.Train.n_workers">n_workers</a></code></li>
+<li><code><a title="saev.config.Train.objective" href="#saev.config.Train.objective">objective</a></code></li>
 <li><code><a title="saev.config.Train.sae" href="#saev.config.Train.sae">sae</a></code></li>
 <li><code><a title="saev.config.Train.sae_batch_size" href="#saev.config.Train.sae_batch_size">sae_batch_size</a></code></li>
 <li><code><a title="saev.config.Train.seed" href="#saev.config.Train.seed">seed</a></code></li>
@@ -1014,6 +1073,12 @@ def top_values_fpath(self) -&gt; str:
 <li><code><a title="saev.config.Train.tag" href="#saev.config.Train.tag">tag</a></code></li>
 <li><code><a title="saev.config.Train.track" href="#saev.config.Train.track">track</a></code></li>
 <li><code><a title="saev.config.Train.wandb_project" href="#saev.config.Train.wandb_project">wandb_project</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="saev.config.Vanilla" href="#saev.config.Vanilla">Vanilla</a></code></h4>
+<ul class="">
+<li><code><a title="saev.config.Vanilla.sparsity_coeff" href="#saev.config.Vanilla.sparsity_coeff">sparsity_coeff</a></code></li>
 </ul>
 </li>
 <li>

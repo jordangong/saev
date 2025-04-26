@@ -1,12 +1,11 @@
 # Regressions
 
-Last checked: 2025-04-10
+Last checked: 2025-04-25
 
-# 3 failing test(s)
+# 1 failing test(s)
 
-- saev/test_activations.py::test_shard_writer_and_dataset_e2e
-- saev/test_nn.py::test_safe_mse_hypothesis
-- saev/test_nn.py::test_safe_mse_nonzero
+- saev/test_training.py::test_one_training_step_matryoshka
+
 # Coverage
 
-Coverage: 766/1734 lines (44.2%)
+Coverage: 1209/1870 lines (64.7%)

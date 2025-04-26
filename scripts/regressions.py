@@ -1,5 +1,5 @@
-import json
 import datetime
+import json
 import pathlib
 
 
@@ -40,7 +40,7 @@ def main(
     else:
         out.append("**All tests passed**")
 
-    out.append(f"# Coverage\n\nCoverage: {covered}/{total} lines ({percent:.1f}%)\n")
+    out.append(f"\n# Coverage\n\nCoverage: {covered}/{total} lines ({percent:.1f}%)\n")
 
     pathlib.Path(out_fpath).write_text("\n".join(out))
 

@@ -1,3 +1,5 @@
+import pytest
+
 from . import config
 
 
@@ -72,3 +74,19 @@ def test_expand_multiple():
     actual = list(config.expand(cfg))
 
     assert expected == actual
+
+
+# every union alias is exhaustive: constructing an unknown class must fail
+@pytest.mark.parametrize(
+    "alias, members",
+    [
+        (config.SparseAutoencoder, {config.Relu, config.JumpRelu}),
+        (config.Objective, {config.Vanilla, config.Matryoshka}),
+        (
+            config.DatasetConfig,
+            {config.ImagenetDataset, config.ImageFolderDataset, config.Ade20kDataset},
+        ),
+    ],
+)
+def test_union_is_exhaustive(alias, members):
+    assert members == set(alias.__args__)

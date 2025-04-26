@@ -21,7 +21,7 @@ import beartype
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class ImagenetDataset:
     """Configuration for HuggingFace Imagenet."""
 
@@ -42,7 +42,7 @@ class ImagenetDataset:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class ImageFolderDataset:
     """Configuration for a generic image folder dataset."""
 
@@ -59,7 +59,7 @@ class ImageFolderDataset:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Ade20kDataset:
     """ """
 
@@ -140,7 +140,7 @@ DatasetConfig = ImagenetDataset | ImageFolderDataset | Ade20kDataset | WebDatase
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Activations:
     """
     Configuration for calculating and saving ViT activations.
@@ -186,7 +186,7 @@ class Activations:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class DataLoad:
     """
     Configuration for loading activation data from disk.
@@ -209,17 +209,13 @@ class DataLoad:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
-class SparseAutoencoder:
+@dataclasses.dataclass(frozen=True, slots=True)
+class Relu:
     d_vit: int = 1024
     exp_factor: int = 16
     """Expansion factor for SAE."""
-    sparsity_coeff: float = 4e-4
-    """How much to weight sparsity loss term."""
     n_reinit_samples: int = 1024 * 16 * 32
     """Number of samples to use for SAE re-init. Anthropic proposes initializing b_dec to the geometric median of the dataset here: https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder-bias. We use the regular mean."""
-    ghost_grads: bool = False
-    """Whether to use ghost grads."""
     remove_parallel_grads: bool = True
     """Whether to remove gradients parallel to W_dec columns (which will be ignored because we force the columns to have unit norm). See https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder-optimization for the original discussion from Anthropic."""
     normalize_w_dec: bool = True
@@ -233,7 +229,41 @@ class SparseAutoencoder:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
+class JumpRelu:
+    """Implementation of the JumpReLU activation function for SAEs. Not implemented."""
+
+    pass
+
+
+SparseAutoencoder = Relu | JumpRelu
+
+
+@beartype.beartype
+@dataclasses.dataclass(frozen=True, slots=True)
+class Vanilla:
+    sparsity_coeff: float = 4e-4
+    """How much to weight sparsity loss term."""
+
+
+@beartype.beartype
+@dataclasses.dataclass(frozen=True, slots=True)
+class Matryoshka:
+    """
+    Config for the Matryoshka loss for another arbitrary SAE class.
+
+    Reference code is here: https://github.com/noanabeshima/matryoshka-saes and the original reading is https://sparselatents.com/matryoshka.html and https://arxiv.org/pdf/2503.17547.
+    """
+
+    n_prefixes: int = 10
+    """Number of random length prefixes to use for loss calculation."""
+
+
+Objective = Vanilla | Matryoshka
+
+
+@beartype.beartype
+@dataclasses.dataclass(frozen=True, slots=True)
 class Train:
     """
     Configuration for training a sparse autoencoder on a vision transformer.
@@ -245,8 +275,10 @@ class Train:
     """Number of dataloader workers."""
     n_patches: int = 100_000_000
     """Number of SAE training examples."""
-    sae: SparseAutoencoder = dataclasses.field(default_factory=SparseAutoencoder)
+    sae: SparseAutoencoder = dataclasses.field(default_factory=Relu)
     """SAE configuration."""
+    objective: Objective = dataclasses.field(default_factory=Vanilla)
+    """SAE loss configuration."""
     n_sparsity_warmup: int = 0
     """Number of sparsity coefficient warmup steps."""
     lr: float = 0.0004
@@ -281,7 +313,7 @@ class Train:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Visuals:
     """Configuration for generating visuals from trained SAEs."""
 

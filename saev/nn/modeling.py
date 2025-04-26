@@ -2,6 +2,7 @@
 Neural network architectures for sparse autoencoders.
 """
 
+import dataclasses
 import io
 import json
 import logging
@@ -14,27 +15,7 @@ import torch
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
-from . import config
-
-
-class Loss(typing.NamedTuple):
-    """The composite loss terms for an autoencoder training batch."""
-
-    mse: Float[Tensor, ""]
-    """Reconstruction loss (mean squared error)."""
-    sparsity: Float[Tensor, ""]
-    """Sparsity loss, typically lambda * L1."""
-    ghost_grad: Float[Tensor, ""]
-    """Ghost gradient loss, if any."""
-    l0: Float[Tensor, ""]
-    """L0 magnitude of hidden activations."""
-    l1: Float[Tensor, ""]
-    """L1 magnitude of hidden activations."""
-
-    @property
-    def loss(self) -> Float[Tensor, ""]:
-        """Total loss."""
-        return self.mse + self.sparsity + self.ghost_grad
+from .. import config
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -42,8 +23,6 @@ class SparseAutoencoder(torch.nn.Module):
     """
     Sparse auto-encoder (SAE) using L1 sparsity penalty.
     """
-
-    cfg: config.SparseAutoencoder
 
     def __init__(self, cfg: config.SparseAutoencoder):
         super().__init__()
@@ -60,13 +39,15 @@ class SparseAutoencoder(torch.nn.Module):
         )
         self.b_dec = torch.nn.Parameter(torch.zeros(cfg.d_vit))
 
+        self.activation = get_activation(cfg)
+
         self.logger = logging.getLogger(f"sae(seed={cfg.seed})")
 
     def forward(
         self, x: Float[Tensor, "batch d_model"]
-    ) -> tuple[Float[Tensor, "batch d_model"], Float[Tensor, "batch d_sae"], Loss]:
+    ) -> tuple[Float[Tensor, "batch d_model"], Float[Tensor, "batch d_sae"]]:
         """
-        Given x, calculates the reconstructed x_hat, the intermediate activations f_x, and the loss.
+        Given x, calculates the reconstructed x_hat and the intermediate activations f_x.
 
         Arguments:
             x: a batch of ViT activations.
@@ -79,20 +60,10 @@ class SparseAutoencoder(torch.nn.Module):
             )
             + self.b_enc
         )
-        f_x = torch.nn.functional.relu(h_pre)
+        f_x = self.activation(h_pre)
         x_hat = self.decode(f_x)
 
-        # Some values of x and x_hat can be very large. We can calculate a safe MSE
-        mse_loss = safe_mse(x_hat, x)
-
-        mse_loss = mse_loss.mean()
-        l0 = (f_x > 0).float().sum(axis=1).mean(axis=0)
-        l1 = f_x.sum(axis=1).mean(axis=0)
-        sparsity_loss = self.cfg.sparsity_coeff * l1
-        # Ghost loss is included for backwards compatibility.
-        ghost_loss = torch.zeros_like(mse_loss)
-
-        return x_hat, f_x, Loss(mse_loss, sparsity_loss, ghost_loss, l0, l1)
+        return x_hat, f_x
 
     def decode(
         self, f_x: Float[Tensor, "batch d_sae"]
@@ -151,32 +122,14 @@ class SparseAutoencoder(torch.nn.Module):
         )
 
 
-@jaxtyped(typechecker=beartype.beartype)
-def ref_mse(
-    x_hat: Float[Tensor, "*d"], x: Float[Tensor, "*d"], norm: bool = True
-) -> Float[Tensor, "*d"]:
-    mse_loss = torch.pow((x_hat - x.float()), 2)
-
-    if norm:
-        mse_loss /= (x**2).sum(dim=-1, keepdim=True).sqrt()
-    return mse_loss
-
-
-@jaxtyped(typechecker=beartype.beartype)
-def safe_mse(
-    x_hat: Float[Tensor, "*batch d"], x: Float[Tensor, "*batch d"], norm: bool = False
-) -> Float[Tensor, "*batch d"]:
-    upper = x.abs().max()
-    x = x / upper
-    x_hat = x_hat / upper
-
-    mse = (x_hat - x) ** 2
-    # (sam): I am now realizing that we normalize by the L2 norm of x.
-    if norm:
-        mse /= torch.linalg.norm(x, axis=-1, keepdim=True) + 1e-12
-        return mse * upper
-
-    return mse * upper * upper
+@beartype.beartype
+def get_activation(cfg: config.SparseAutoencoder) -> torch.nn.Module:
+    if isinstance(cfg, config.Relu):
+        return torch.nn.ReLU()
+    elif isinstance(cfg, config.JumpRelu):
+        raise NotImplementedError()
+    else:
+        typing.assert_never(cfg)
 
 
 @beartype.beartype
@@ -188,7 +141,7 @@ def dump(fpath: str, sae: SparseAutoencoder):
         fpath: filepath to save checkpoint to.
         sae: sparse autoencoder checkpoint to save.
     """
-    kwargs = vars(sae.cfg)
+    kwargs = dataclasses.asdict(sae.cfg)
 
     os.makedirs(os.path.dirname(fpath), exist_ok=True)
     with open(fpath, "wb") as fd:

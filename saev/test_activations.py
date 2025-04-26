@@ -37,16 +37,19 @@ def test_dataloader_batches():
 def test_shard_writer_and_dataset_e2e():
     with tempfile.TemporaryDirectory() as tmpdir:
         cfg = config.Activations(
-            vit_family="timm",
-            vit_ckpt="hf_hub:timm/test_vit3.r160_in1k",
-            d_vit=96,
-            n_patches_per_img=100,
+            vit_family="dinov2",
+            vit_ckpt="dinov2_vits14_reg",
+            d_vit=384,
+            n_patches_per_img=256,
             vit_layers=[-2, -1],
             vit_batch_size=8,
             n_workers=8,
             dump_to=tmpdir,
         )
         vit = activations.make_vit(cfg.vit_family, cfg.vit_ckpt)
+        vit = activations.RecordedVisionTransformer(
+            vit, cfg.n_patches_per_img, cfg.cls_token, cfg.vit_layers
+        )
         dataloader = activations.get_dataloader(
             cfg,
             img_transform=activations.make_img_transform(cfg.vit_family, cfg.vit_ckpt),
@@ -63,14 +66,16 @@ def test_shard_writer_and_dataset_e2e():
         )
 
         i = 0
-        for b, batch in zip(range(100), dataloader):
+        for b, batch in zip(range(10), dataloader):
             # Don't care about the forward pass.
-            _, cache = vit(batch["image"])
+            out, cache = vit(batch["image"])
+            del out
+
             writer[i : i + len(cache)] = cache
             i += len(cache)
-            assert cache.shape == (cfg.vit_batch_size, len(cfg.layers), 101, 96)
+            assert cache.shape == (cfg.vit_batch_size, len(cfg.vit_layers), 257, 384)
 
-            acts, _, _ = zip(*[dataset[i.item()] for i in batch["index"]])
+            acts = [dataset[i.item()]["act"] for i in batch["index"]]
             from_dataset = torch.stack(acts)
             torch.testing.assert_close(cache[:, -1, 0], from_dataset)
             print(f"Batch {b} matched.")

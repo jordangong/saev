@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.3">
+<title>saev.nn.objectives API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>saev.nn.objectives</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="saev.nn.objectives.get_objective"><code class="name flex">
+<span>def <span class="ident">get_objective</span></span>(<span>cfg: <a title="saev.config.Vanilla" href="../config.html#saev.config.Vanilla">Vanilla</a> | <a title="saev.config.Matryoshka" href="../config.html#saev.config.Matryoshka">Matryoshka</a>) ‑> <a title="saev.nn.objectives.Objective" href="#saev.nn.objectives.Objective">Objective</a></span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="saev.nn.objectives.mean_squared_err"><code class="name flex">
+<span>def <span class="ident">mean_squared_err</span></span>(<span>x_hat: jaxtyping.Float[Tensor, '*batch d'],<br>x: jaxtyping.Float[Tensor, '*batch d'],<br>norm: bool = False) ‑> jaxtyping.Float[Tensor, '*batch d']</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="saev.nn.objectives.ref_mean_squared_err"><code class="name flex">
+<span>def <span class="ident">ref_mean_squared_err</span></span>(<span>x_hat: jaxtyping.Float[Tensor, '*d'],<br>x: jaxtyping.Float[Tensor, '*d'],<br>norm: bool = False) ‑> jaxtyping.Float[Tensor, '*d']</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="saev.nn.objectives.Loss"><code class="flex name class">
+<span>class <span class="ident">Loss</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>The loss term for an autoencoder training batch.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True, slots=True)
+class Loss:
+    &#34;&#34;&#34;The loss term for an autoencoder training batch.&#34;&#34;&#34;
+
+    @property
+    def loss(self) -&gt; Float[Tensor, &#34;&#34;]:
+        &#34;&#34;&#34;Total loss.&#34;&#34;&#34;
+        raise NotImplementedError()
+
+    def metrics(self) -&gt; dict[str, object]:
+        raise NotImplementedError()</code></pre>
+</details>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="saev.nn.objectives.MatryoshkaLoss" href="#saev.nn.objectives.MatryoshkaLoss">MatryoshkaLoss</a></li>
+<li><a title="saev.nn.objectives.MatryoshkaLoss" href="#saev.nn.objectives.MatryoshkaLoss">MatryoshkaLoss</a></li>
+<li><a title="saev.nn.objectives.VanillaLoss" href="#saev.nn.objectives.VanillaLoss">VanillaLoss</a></li>
+<li><a title="saev.nn.objectives.VanillaLoss" href="#saev.nn.objectives.VanillaLoss">VanillaLoss</a></li>
+</ul>
+<h3>Instance variables</h3>
+<dl>
+<dt id="saev.nn.objectives.Loss.loss"><code class="name">prop <span class="ident">loss</span> : jaxtyping.Float[Tensor, '']</code></dt>
+<dd>
+<div class="desc"><p>Total loss.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def loss(self) -&gt; Float[Tensor, &#34;&#34;]:
+    &#34;&#34;&#34;Total loss.&#34;&#34;&#34;
+    raise NotImplementedError()</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="saev.nn.objectives.Loss.metrics"><code class="name flex">
+<span>def <span class="ident">metrics</span></span>(<span>self) ‑> dict[str, object]</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="saev.nn.objectives.MatryoshkaLoss"><code class="flex name class">
+<span>class <span class="ident">MatryoshkaLoss</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>The composite loss terms for an training batch.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True, slots=True)
+class MatryoshkaLoss(Loss):
+    &#34;&#34;&#34;The composite loss terms for an training batch.&#34;&#34;&#34;
+
+    @property
+    def loss(self) -&gt; Float[Tensor, &#34;&#34;]:
+        raise NotImplementedError()</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="saev.nn.objectives.Loss" href="#saev.nn.objectives.Loss">Loss</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="saev.nn.objectives.Loss" href="#saev.nn.objectives.Loss">Loss</a></b></code>:
+<ul class="hlist">
+<li><code><a title="saev.nn.objectives.Loss.loss" href="#saev.nn.objectives.Loss.loss">loss</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="saev.nn.objectives.MatryoshkaObjective"><code class="flex name class">
+<span>class <span class="ident">MatryoshkaObjective</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Torch module for calculating the matryoshka loss for an SAE.</p>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class MatryoshkaObjective(torch.nn.Module):
+    &#34;&#34;&#34;Torch module for calculating the matryoshka loss for an SAE.&#34;&#34;&#34;
+
+    def forward(self) -&gt; &#34;MatryoshkaLoss.Loss&#34;:
+        raise NotImplementedError()</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="saev.nn.objectives.MatryoshkaObjective.forward"><code class="name flex">
+<span>def <span class="ident">forward</span></span>(<span>self) ‑> Callable[..., Any]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Define the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the :class:<code>Module</code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div></div>
+</dd>
+</dl>
+</dd>
+<dt id="saev.nn.objectives.Objective"><code class="flex name class">
+<span>class <span class="ident">Objective</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Base class for all neural network modules.</p>
+<p>Your models should also subclass this class.</p>
+<p>Modules can also contain other Modules, allowing to nest them in
+a tree structure. You can assign the submodules as regular attributes::</p>
+<pre><code>import torch.nn as nn
+import torch.nn.functional as F
+
+class Model(nn.Module):
+    def __init__(self) -&gt; None:
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 20, 5)
+        self.conv2 = nn.Conv2d(20, 20, 5)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        return F.relu(self.conv2(x))
+</code></pre>
+<p>Submodules assigned in this way will be registered, and will have their
+parameters converted too when you call :meth:<code>to</code>, etc.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>As per the example above, an <code>__init__()</code> call to the parent class
+must be made before assignment on the child.</p>
+</div>
+<p>:ivar training: Boolean represents whether this module is in training or
+evaluation mode.
+:vartype training: bool</p>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class Objective(torch.nn.Module):
+    def forward(
+        self,
+        x: Float[Tensor, &#34;batch d_model&#34;],
+        f_x: Float[Tensor, &#34;batch d_sae&#34;],
+        x_hat: Float[Tensor, &#34;batch d_model&#34;],
+    ) -&gt; Loss:
+        raise NotImplementedError()</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="saev.nn.objectives.VanillaObjective" href="#saev.nn.objectives.VanillaObjective">VanillaObjective</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="saev.nn.objectives.Objective.forward"><code class="name flex">
+<span>def <span class="ident">forward</span></span>(<span>self,<br>x: jaxtyping.Float[Tensor, 'batch d_model'],<br>f_x: jaxtyping.Float[Tensor, 'batch d_sae'],<br>x_hat: jaxtyping.Float[Tensor, 'batch d_model']) ‑> <a title="saev.nn.objectives.Loss" href="#saev.nn.objectives.Loss">Loss</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Define the computation performed at every call.</p>
+<p>Should be overridden by all subclasses.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Although the recipe for forward pass needs to be defined within
+this function, one should call the :class:<code>Module</code> instance afterwards
+instead of this since the former takes care of running the
+registered hooks while the latter silently ignores them.</p>
+</div></div>
+</dd>
+</dl>
+</dd>
+<dt id="saev.nn.objectives.VanillaLoss"><code class="flex name class">
+<span>class <span class="ident">VanillaLoss</span></span>
+<span>(</span><span>mse: jaxtyping.Float[Tensor, ''],<br>sparsity: jaxtyping.Float[Tensor, ''],<br>l0: jaxtyping.Float[Tensor, ''],<br>l1: jaxtyping.Float[Tensor, ''])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>The vanilla loss terms for an training batch.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True, slots=True)
+class VanillaLoss(Loss):
+    &#34;&#34;&#34;The vanilla loss terms for an training batch.&#34;&#34;&#34;
+
+    mse: Float[Tensor, &#34;&#34;]
+    &#34;&#34;&#34;Reconstruction loss (mean squared error).&#34;&#34;&#34;
+    sparsity: Float[Tensor, &#34;&#34;]
+    &#34;&#34;&#34;Sparsity loss, typically lambda * L1.&#34;&#34;&#34;
+    l0: Float[Tensor, &#34;&#34;]
+    &#34;&#34;&#34;L0 magnitude of hidden activations.&#34;&#34;&#34;
+    l1: Float[Tensor, &#34;&#34;]
+    &#34;&#34;&#34;L1 magnitude of hidden activations.&#34;&#34;&#34;
+
+    @property
+    def loss(self) -&gt; Float[Tensor, &#34;&#34;]:
+        &#34;&#34;&#34;Total loss.&#34;&#34;&#34;
+        return self.mse + self.sparsity
+
+    def metrics(self) -&gt; dict[str, object]:
+        return {
+            &#34;loss&#34;: self.loss.item(),
+            &#34;mse&#34;: self.mse.item(),
+            &#34;l0&#34;: self.l0.item(),
+            &#34;l1&#34;: self.l1.item(),
+            &#34;sparsity&#34;: self.sparsity.item(),
+        }</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="saev.nn.objectives.Loss" href="#saev.nn.objectives.Loss">Loss</a></li>
+</ul>
+<h3>Instance variables</h3>
+<dl>
+<dt id="saev.nn.objectives.VanillaLoss.l0"><code class="name">var <span class="ident">l0</span> : jaxtyping.Float[Tensor, '']</code></dt>
+<dd>
+<div class="desc"><p>L0 magnitude of hidden activations.</p></div>
+</dd>
+<dt id="saev.nn.objectives.VanillaLoss.l1"><code class="name">var <span class="ident">l1</span> : jaxtyping.Float[Tensor, '']</code></dt>
+<dd>
+<div class="desc"><p>L1 magnitude of hidden activations.</p></div>
+</dd>
+<dt id="saev.nn.objectives.VanillaLoss.mse"><code class="name">var <span class="ident">mse</span> : jaxtyping.Float[Tensor, '']</code></dt>
+<dd>
+<div class="desc"><p>Reconstruction loss (mean squared error).</p></div>
+</dd>
+<dt id="saev.nn.objectives.VanillaLoss.sparsity"><code class="name">var <span class="ident">sparsity</span> : jaxtyping.Float[Tensor, '']</code></dt>
+<dd>
+<div class="desc"><p>Sparsity loss, typically lambda * L1.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="saev.nn.objectives.VanillaLoss.metrics"><code class="name flex">
+<span>def <span class="ident">metrics</span></span>(<span>self) ‑> dict[str, object]</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="saev.nn.objectives.Loss" href="#saev.nn.objectives.Loss">Loss</a></b></code>:
+<ul class="hlist">
+<li><code><a title="saev.nn.objectives.Loss.loss" href="#saev.nn.objectives.Loss.loss">loss</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="saev.nn.objectives.VanillaObjective"><code class="flex name class">
+<span>class <span class="ident">VanillaObjective</span></span>
+<span>(</span><span>cfg: <a title="saev.config.Vanilla" href="../config.html#saev.config.Vanilla">Vanilla</a>)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Base class for all neural network modules.</p>
+<p>Your models should also subclass this class.</p>
+<p>Modules can also contain other Modules, allowing to nest them in
+a tree structure. You can assign the submodules as regular attributes::</p>
+<pre><code>import torch.nn as nn
+import torch.nn.functional as F
+
+class Model(nn.Module):
+    def __init__(self) -&gt; None:
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 20, 5)
+        self.conv2 = nn.Conv2d(20, 20, 5)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        return F.relu(self.conv2(x))
+</code></pre>
+<p>Submodules assigned in this way will be registered, and will have their
+parameters converted too when you call :meth:<code>to</code>, etc.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>As per the example above, an <code>__init__()</code> call to the parent class
+must be made before assignment on the child.</p>
+</div>
+<p>:ivar training: Boolean represents whether this module is in training or
+evaluation mode.
+:vartype training: bool</p>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
+class VanillaObjective(Objective):
+    def __init__(self, cfg: config.Vanilla):
+        super().__init__()
+        self.cfg = cfg
+
+    def forward(
+        self,
+        x: Float[Tensor, &#34;batch d_model&#34;],
+        f_x: Float[Tensor, &#34;batch d_sae&#34;],
+        x_hat: Float[Tensor, &#34;batch d_model&#34;],
+    ) -&gt; VanillaLoss:
+        # Some values of x and x_hat can be very large. We can calculate a safe MSE
+        print(x_hat.shape, x.shape)
+        mse_loss = mean_squared_err(x_hat, x)
+
+        mse_loss = mse_loss.mean()
+        l0 = (f_x &gt; 0).float().sum(axis=1).mean(axis=0)
+        l1 = f_x.sum(axis=1).mean(axis=0)
+        sparsity_loss = self.cfg.sparsity_coeff * l1
+
+        return VanillaLoss(mse_loss, sparsity_loss, l0, l1)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="saev.nn.objectives.Objective" href="#saev.nn.objectives.Objective">Objective</a></li>
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="saev.nn.objectives.Objective" href="#saev.nn.objectives.Objective">Objective</a></b></code>:
+<ul class="hlist">
+<li><code><a title="saev.nn.objectives.Objective.forward" href="#saev.nn.objectives.Objective.forward">forward</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="saev.nn" href="index.html">saev.nn</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="saev.nn.objectives.get_objective" href="#saev.nn.objectives.get_objective">get_objective</a></code></li>
+<li><code><a title="saev.nn.objectives.mean_squared_err" href="#saev.nn.objectives.mean_squared_err">mean_squared_err</a></code></li>
+<li><code><a title="saev.nn.objectives.ref_mean_squared_err" href="#saev.nn.objectives.ref_mean_squared_err">ref_mean_squared_err</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="saev.nn.objectives.Loss" href="#saev.nn.objectives.Loss">Loss</a></code></h4>
+<ul class="">
+<li><code><a title="saev.nn.objectives.Loss.loss" href="#saev.nn.objectives.Loss.loss">loss</a></code></li>
+<li><code><a title="saev.nn.objectives.Loss.metrics" href="#saev.nn.objectives.Loss.metrics">metrics</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="saev.nn.objectives.MatryoshkaLoss" href="#saev.nn.objectives.MatryoshkaLoss">MatryoshkaLoss</a></code></h4>
+</li>
+<li>
+<h4><code><a title="saev.nn.objectives.MatryoshkaObjective" href="#saev.nn.objectives.MatryoshkaObjective">MatryoshkaObjective</a></code></h4>
+<ul class="">
+<li><code><a title="saev.nn.objectives.MatryoshkaObjective.forward" href="#saev.nn.objectives.MatryoshkaObjective.forward">forward</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="saev.nn.objectives.Objective" href="#saev.nn.objectives.Objective">Objective</a></code></h4>
+<ul class="">
+<li><code><a title="saev.nn.objectives.Objective.forward" href="#saev.nn.objectives.Objective.forward">forward</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="saev.nn.objectives.VanillaLoss" href="#saev.nn.objectives.VanillaLoss">VanillaLoss</a></code></h4>
+<ul class="">
+<li><code><a title="saev.nn.objectives.VanillaLoss.l0" href="#saev.nn.objectives.VanillaLoss.l0">l0</a></code></li>
+<li><code><a title="saev.nn.objectives.VanillaLoss.l1" href="#saev.nn.objectives.VanillaLoss.l1">l1</a></code></li>
+<li><code><a title="saev.nn.objectives.VanillaLoss.metrics" href="#saev.nn.objectives.VanillaLoss.metrics">metrics</a></code></li>
+<li><code><a title="saev.nn.objectives.VanillaLoss.mse" href="#saev.nn.objectives.VanillaLoss.mse">mse</a></code></li>
+<li><code><a title="saev.nn.objectives.VanillaLoss.sparsity" href="#saev.nn.objectives.VanillaLoss.sparsity">sparsity</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="saev.nn.objectives.VanillaObjective" href="#saev.nn.objectives.VanillaObjective">VanillaObjective</a></code></h4>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.3</a>.</p>
+</footer>
+</body>
+</html>

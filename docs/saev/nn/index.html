@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.3">
 <title>saev.nn API documentation</title>
-<meta name="description" content="Neural network architectures for sparse autoencoders.">
+<meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -27,9 +27,27 @@ hljs.highlightAll();
 <h1 class="title">Module <code>saev.nn</code></h1>
 </header>
 <section id="section-intro">
-<p>Neural network architectures for sparse autoencoders.</p>
 </section>
 <section>
+<h2 class="section-title" id="header-submodules">Sub-modules</h2>
+<dl>
+<dt><code class="name"><a title="saev.nn.modeling" href="modeling.html">saev.nn.modeling</a></code></dt>
+<dd>
+<div class="desc"><p>Neural network architectures for sparse autoencoders.</p></div>
+</dd>
+<dt><code class="name"><a title="saev.nn.objectives" href="objectives.html">saev.nn.objectives</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="saev.nn.test_modeling" href="test_modeling.html">saev.nn.test_modeling</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="saev.nn.test_objectives" href="test_objectives.html">saev.nn.test_objectives</a></code></dt>
+<dd>
+<div class="desc"><p>Uses <a href="">hypothesis</a> and <a href="https://hypothesis-torch.readthedocs.io/en/stable/compatability/">hypothesis-torch</a> to generate test cases to compare our …</p></div>
+</dd>
+</dl>
 </section>
 <section>
 </section>
@@ -37,7 +55,7 @@ hljs.highlightAll();
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="saev.nn.dump"><code class="name flex">
-<span>def <span class="ident">dump</span></span>(<span>fpath: str,<br>sae: <a title="saev.nn.SparseAutoencoder" href="#saev.nn.SparseAutoencoder">SparseAutoencoder</a>)</span>
+<span>def <span class="ident">dump</span></span>(<span>fpath: str,<br>sae: <a title="saev.nn.modeling.SparseAutoencoder" href="modeling.html#saev.nn.modeling.SparseAutoencoder">SparseAutoencoder</a>)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Save an SAE checkpoint to disk along with configuration, using the <a href="https://docs.kidger.site/equinox/examples/serialisation">trick from equinox</a>.</p>
@@ -45,102 +63,26 @@ hljs.highlightAll();
 <p>fpath: filepath to save checkpoint to.
 sae: sparse autoencoder checkpoint to save.</p></div>
 </dd>
+<dt id="saev.nn.get_objective"><code class="name flex">
+<span>def <span class="ident">get_objective</span></span>(<span>cfg: <a title="saev.config.Vanilla" href="../config.html#saev.config.Vanilla">Vanilla</a> | <a title="saev.config.Matryoshka" href="../config.html#saev.config.Matryoshka">Matryoshka</a>) ‑> <a title="saev.nn.objectives.Objective" href="objectives.html#saev.nn.objectives.Objective">Objective</a></span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="saev.nn.load"><code class="name flex">
-<span>def <span class="ident">load</span></span>(<span>fpath: str, *, device: str = 'cpu') ‑> <a title="saev.nn.SparseAutoencoder" href="#saev.nn.SparseAutoencoder">SparseAutoencoder</a></span>
+<span>def <span class="ident">load</span></span>(<span>fpath: str, *, device: str = 'cpu') ‑> <a title="saev.nn.modeling.SparseAutoencoder" href="modeling.html#saev.nn.modeling.SparseAutoencoder">SparseAutoencoder</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Loads a sparse autoencoder from disk.</p></div>
-</dd>
-<dt id="saev.nn.ref_mse"><code class="name flex">
-<span>def <span class="ident">ref_mse</span></span>(<span>x_hat: jaxtyping.Float[Tensor, '*d'],<br>x: jaxtyping.Float[Tensor, '*d'],<br>norm: bool = True) ‑> jaxtyping.Float[Tensor, '*d']</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="saev.nn.safe_mse"><code class="name flex">
-<span>def <span class="ident">safe_mse</span></span>(<span>x_hat: jaxtyping.Float[Tensor, '*batch d'],<br>x: jaxtyping.Float[Tensor, '*batch d'],<br>norm: bool = False) ‑> jaxtyping.Float[Tensor, '*batch d']</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
 </dd>
 </dl>
 </section>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="saev.nn.Loss"><code class="flex name class">
-<span>class <span class="ident">Loss</span></span>
-<span>(</span><span>mse: jaxtyping.Float[Tensor, ''],<br>sparsity: jaxtyping.Float[Tensor, ''],<br>ghost_grad: jaxtyping.Float[Tensor, ''],<br>l0: jaxtyping.Float[Tensor, ''],<br>l1: jaxtyping.Float[Tensor, ''])</span>
-</code></dt>
-<dd>
-<div class="desc"><p>The composite loss terms for an autoencoder training batch.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Loss(typing.NamedTuple):
-    &#34;&#34;&#34;The composite loss terms for an autoencoder training batch.&#34;&#34;&#34;
-
-    mse: Float[Tensor, &#34;&#34;]
-    &#34;&#34;&#34;Reconstruction loss (mean squared error).&#34;&#34;&#34;
-    sparsity: Float[Tensor, &#34;&#34;]
-    &#34;&#34;&#34;Sparsity loss, typically lambda * L1.&#34;&#34;&#34;
-    ghost_grad: Float[Tensor, &#34;&#34;]
-    &#34;&#34;&#34;Ghost gradient loss, if any.&#34;&#34;&#34;
-    l0: Float[Tensor, &#34;&#34;]
-    &#34;&#34;&#34;L0 magnitude of hidden activations.&#34;&#34;&#34;
-    l1: Float[Tensor, &#34;&#34;]
-    &#34;&#34;&#34;L1 magnitude of hidden activations.&#34;&#34;&#34;
-
-    @property
-    def loss(self) -&gt; Float[Tensor, &#34;&#34;]:
-        &#34;&#34;&#34;Total loss.&#34;&#34;&#34;
-        return self.mse + self.sparsity + self.ghost_grad</code></pre>
-</details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>builtins.tuple</li>
-</ul>
-<h3>Instance variables</h3>
-<dl>
-<dt id="saev.nn.Loss.ghost_grad"><code class="name">var <span class="ident">ghost_grad</span> : jaxtyping.Float[Tensor, '']</code></dt>
-<dd>
-<div class="desc"><p>Ghost gradient loss, if any.</p></div>
-</dd>
-<dt id="saev.nn.Loss.l0"><code class="name">var <span class="ident">l0</span> : jaxtyping.Float[Tensor, '']</code></dt>
-<dd>
-<div class="desc"><p>L0 magnitude of hidden activations.</p></div>
-</dd>
-<dt id="saev.nn.Loss.l1"><code class="name">var <span class="ident">l1</span> : jaxtyping.Float[Tensor, '']</code></dt>
-<dd>
-<div class="desc"><p>L1 magnitude of hidden activations.</p></div>
-</dd>
-<dt id="saev.nn.Loss.loss"><code class="name">prop <span class="ident">loss</span> : jaxtyping.Float[Tensor, '']</code></dt>
-<dd>
-<div class="desc"><p>Total loss.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@property
-def loss(self) -&gt; Float[Tensor, &#34;&#34;]:
-    &#34;&#34;&#34;Total loss.&#34;&#34;&#34;
-    return self.mse + self.sparsity + self.ghost_grad</code></pre>
-</details>
-</dd>
-<dt id="saev.nn.Loss.mse"><code class="name">var <span class="ident">mse</span> : jaxtyping.Float[Tensor, '']</code></dt>
-<dd>
-<div class="desc"><p>Reconstruction loss (mean squared error).</p></div>
-</dd>
-<dt id="saev.nn.Loss.sparsity"><code class="name">var <span class="ident">sparsity</span> : jaxtyping.Float[Tensor, '']</code></dt>
-<dd>
-<div class="desc"><p>Sparsity loss, typically lambda * L1.</p></div>
-</dd>
-</dl>
-</dd>
 <dt id="saev.nn.SparseAutoencoder"><code class="flex name class">
 <span>class <span class="ident">SparseAutoencoder</span></span>
-<span>(</span><span>cfg: <a title="saev.config.SparseAutoencoder" href="config.html#saev.config.SparseAutoencoder">SparseAutoencoder</a>)</span>
+<span>(</span><span>cfg: <a title="saev.config.Relu" href="../config.html#saev.config.Relu">Relu</a> | <a title="saev.config.JumpRelu" href="../config.html#saev.config.JumpRelu">JumpRelu</a>)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Sparse auto-encoder (SAE) using L1 sparsity penalty.</p>
@@ -154,8 +96,6 @@ class SparseAutoencoder(torch.nn.Module):
     &#34;&#34;&#34;
     Sparse auto-encoder (SAE) using L1 sparsity penalty.
     &#34;&#34;&#34;
-
-    cfg: config.SparseAutoencoder
 
     def __init__(self, cfg: config.SparseAutoencoder):
         super().__init__()
@@ -172,13 +112,15 @@ class SparseAutoencoder(torch.nn.Module):
         )
         self.b_dec = torch.nn.Parameter(torch.zeros(cfg.d_vit))
 
+        self.activation = get_activation(cfg)
+
         self.logger = logging.getLogger(f&#34;sae(seed={cfg.seed})&#34;)
 
     def forward(
         self, x: Float[Tensor, &#34;batch d_model&#34;]
-    ) -&gt; tuple[Float[Tensor, &#34;batch d_model&#34;], Float[Tensor, &#34;batch d_sae&#34;], Loss]:
+    ) -&gt; tuple[Float[Tensor, &#34;batch d_model&#34;], Float[Tensor, &#34;batch d_sae&#34;]]:
         &#34;&#34;&#34;
-        Given x, calculates the reconstructed x_hat, the intermediate activations f_x, and the loss.
+        Given x, calculates the reconstructed x_hat and the intermediate activations f_x.
 
         Arguments:
             x: a batch of ViT activations.
@@ -191,20 +133,10 @@ class SparseAutoencoder(torch.nn.Module):
             )
             + self.b_enc
         )
-        f_x = torch.nn.functional.relu(h_pre)
+        f_x = self.activation(h_pre)
         x_hat = self.decode(f_x)
 
-        # Some values of x and x_hat can be very large. We can calculate a safe MSE
-        mse_loss = safe_mse(x_hat, x)
-
-        mse_loss = mse_loss.mean()
-        l0 = (f_x &gt; 0).float().sum(axis=1).mean(axis=0)
-        l1 = f_x.sum(axis=1).mean(axis=0)
-        sparsity_loss = self.cfg.sparsity_coeff * l1
-        # Ghost loss is included for backwards compatibility.
-        ghost_loss = torch.zeros_like(mse_loss)
-
-        return x_hat, f_x, Loss(mse_loss, sparsity_loss, ghost_loss, l0, l1)
+        return x_hat, f_x
 
     def decode(
         self, f_x: Float[Tensor, &#34;batch d_sae&#34;]
@@ -266,13 +198,6 @@ class SparseAutoencoder(torch.nn.Module):
 <ul class="hlist">
 <li>torch.nn.modules.module.Module</li>
 </ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="saev.nn.SparseAutoencoder.cfg"><code class="name">var <span class="ident">cfg</span> : <a title="saev.config.SparseAutoencoder" href="config.html#saev.config.SparseAutoencoder">SparseAutoencoder</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
 <h3>Methods</h3>
 <dl>
 <dt id="saev.nn.SparseAutoencoder.decode"><code class="name flex">
@@ -282,10 +207,10 @@ class SparseAutoencoder(torch.nn.Module):
 <div class="desc"></div>
 </dd>
 <dt id="saev.nn.SparseAutoencoder.forward"><code class="name flex">
-<span>def <span class="ident">forward</span></span>(<span>self, x: jaxtyping.Float[Tensor, 'batch d_model']) ‑> tuple[jaxtyping.Float[Tensor, 'batch d_model'], jaxtyping.Float[Tensor, 'batch d_sae'], <a title="saev.nn.Loss" href="#saev.nn.Loss">Loss</a>]</span>
+<span>def <span class="ident">forward</span></span>(<span>self, x: jaxtyping.Float[Tensor, 'batch d_model']) ‑> tuple[jaxtyping.Float[Tensor, 'batch d_model'], jaxtyping.Float[Tensor, 'batch d_sae']]</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Given x, calculates the reconstructed x_hat, the intermediate activations f_x, and the loss.</p>
+<div class="desc"><p>Given x, calculates the reconstructed x_hat and the intermediate activations f_x.</p>
 <h2 id="arguments">Arguments</h2>
 <p>x: a batch of ViT activations.</p></div>
 </dd>
@@ -320,34 +245,29 @@ class SparseAutoencoder(torch.nn.Module):
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="saev" href="index.html">saev</a></code></li>
+<li><code><a title="saev" href="../index.html">saev</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-submodules">Sub-modules</a></h3>
+<ul>
+<li><code><a title="saev.nn.modeling" href="modeling.html">saev.nn.modeling</a></code></li>
+<li><code><a title="saev.nn.objectives" href="objectives.html">saev.nn.objectives</a></code></li>
+<li><code><a title="saev.nn.test_modeling" href="test_modeling.html">saev.nn.test_modeling</a></code></li>
+<li><code><a title="saev.nn.test_objectives" href="test_objectives.html">saev.nn.test_objectives</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="saev.nn.dump" href="#saev.nn.dump">dump</a></code></li>
+<li><code><a title="saev.nn.get_objective" href="#saev.nn.get_objective">get_objective</a></code></li>
 <li><code><a title="saev.nn.load" href="#saev.nn.load">load</a></code></li>
-<li><code><a title="saev.nn.ref_mse" href="#saev.nn.ref_mse">ref_mse</a></code></li>
-<li><code><a title="saev.nn.safe_mse" href="#saev.nn.safe_mse">safe_mse</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="saev.nn.Loss" href="#saev.nn.Loss">Loss</a></code></h4>
-<ul class="two-column">
-<li><code><a title="saev.nn.Loss.ghost_grad" href="#saev.nn.Loss.ghost_grad">ghost_grad</a></code></li>
-<li><code><a title="saev.nn.Loss.l0" href="#saev.nn.Loss.l0">l0</a></code></li>
-<li><code><a title="saev.nn.Loss.l1" href="#saev.nn.Loss.l1">l1</a></code></li>
-<li><code><a title="saev.nn.Loss.loss" href="#saev.nn.Loss.loss">loss</a></code></li>
-<li><code><a title="saev.nn.Loss.mse" href="#saev.nn.Loss.mse">mse</a></code></li>
-<li><code><a title="saev.nn.Loss.sparsity" href="#saev.nn.Loss.sparsity">sparsity</a></code></li>
-</ul>
-</li>
-<li>
 <h4><code><a title="saev.nn.SparseAutoencoder" href="#saev.nn.SparseAutoencoder">SparseAutoencoder</a></code></h4>
 <ul class="">
-<li><code><a title="saev.nn.SparseAutoencoder.cfg" href="#saev.nn.SparseAutoencoder.cfg">cfg</a></code></li>
 <li><code><a title="saev.nn.SparseAutoencoder.decode" href="#saev.nn.SparseAutoencoder.decode">decode</a></code></li>
 <li><code><a title="saev.nn.SparseAutoencoder.forward" href="#saev.nn.SparseAutoencoder.forward">forward</a></code></li>
 <li><code><a title="saev.nn.SparseAutoencoder.init_b_dec" href="#saev.nn.SparseAutoencoder.init_b_dec">init_b_dec</a></code></li>
