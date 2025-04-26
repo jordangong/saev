@@ -2038,7 +2038,7 @@ import beartype
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class ImagenetDataset:
     """Configuration for HuggingFace Imagenet."""
 
@@ -2059,7 +2059,7 @@ class ImagenetDataset:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class ImageFolderDataset:
     """Configuration for a generic image folder dataset."""
 
@@ -2076,7 +2076,7 @@ class ImageFolderDataset:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Ade20kDataset:
     """ """
 
@@ -2097,7 +2097,7 @@ DatasetConfig = ImagenetDataset | ImageFolderDataset | Ade20kDataset
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Activations:
     """
     Configuration for calculating and saving ViT activations.
@@ -2143,7 +2143,7 @@ class Activations:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class DataLoad:
     """
     Configuration for loading activation data from disk.
@@ -2166,7 +2166,7 @@ class DataLoad:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Relu:
     d_vit: int = 1024
     exp_factor: int = 16
@@ -2186,7 +2186,7 @@ class Relu:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class JumpRelu:
     """Implementation of the JumpReLU activation function for SAEs. Not implemented."""
 
@@ -2197,14 +2197,14 @@ SparseAutoencoder = Relu | JumpRelu
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Vanilla:
     sparsity_coeff: float = 4e-4
     """How much to weight sparsity loss term."""
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Matryoshka:
     """
     Config for the Matryoshka loss for another arbitrary SAE class.
@@ -2220,7 +2220,7 @@ Objective = Vanilla | Matryoshka
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Train:
     """
     Configuration for training a sparse autoencoder on a vision transformer.
@@ -2270,7 +2270,7 @@ class Train:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Visuals:
     """Configuration for generating visuals from trained SAEs."""
 
@@ -3766,14 +3766,16 @@ if __name__ == "__main__":
 
 >>>> nn/__init__.py
 from .modeling import SparseAutoencoder, dump, load
+from .objectives import get_objective
 
-__all__ = ["SparseAutoencoder", "dump", "load"]
+__all__ = ["SparseAutoencoder", "dump", "load", "get_objective"]
 
 >>>> nn/modeling.py
 """
 Neural network architectures for sparse autoencoders.
 """
 
+import dataclasses
 import io
 import json
 import logging
@@ -3896,7 +3898,7 @@ class SparseAutoencoder(torch.nn.Module):
 @beartype.beartype
 def get_activation(cfg: config.SparseAutoencoder) -> torch.nn.Module:
     if isinstance(cfg, config.Relu):
-        return torch.nn.Relu()
+        return torch.nn.ReLU()
     elif isinstance(cfg, config.JumpRelu):
         raise NotImplementedError()
     else:
@@ -3912,7 +3914,7 @@ def dump(fpath: str, sae: SparseAutoencoder):
         fpath: filepath to save checkpoint to.
         sae: sparse autoencoder checkpoint to save.
     """
-    kwargs = vars(sae.cfg)
+    kwargs = dataclasses.asdict(sae.cfg)
 
     os.makedirs(os.path.dirname(fpath), exist_ok=True)
     with open(fpath, "wb") as fd:
@@ -3937,6 +3939,7 @@ def load(fpath: str, *, device: str = "cpu") -> SparseAutoencoder:
     return model
 
 >>>> nn/objectives.py
+import dataclasses
 import typing
 
 import beartype
@@ -3948,12 +3951,16 @@ from .. import config
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class Loss(typing.NamedTuple):
+@dataclasses.dataclass(frozen=True, slots=True)
+class Loss:
     """The loss term for an autoencoder training batch."""
 
     @property
     def loss(self) -> Float[Tensor, ""]:
         """Total loss."""
+        raise NotImplementedError()
+
+    def metrics(self) -> dict[str, object]:
         raise NotImplementedError()
 
 
@@ -3969,6 +3976,7 @@ class Objective(torch.nn.Module):
 
 
 @jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True, slots=True)
 class VanillaLoss(Loss):
     """The vanilla loss terms for an training batch."""
 
@@ -3986,6 +3994,15 @@ class VanillaLoss(Loss):
         """Total loss."""
         return self.mse + self.sparsity
 
+    def metrics(self) -> dict[str, object]:
+        return {
+            "loss": self.loss.item(),
+            "mse": self.mse.item(),
+            "l0": self.l0.item(),
+            "l1": self.l1.item(),
+            "sparsity": self.sparsity.item(),
+        }
+
 
 @jaxtyped(typechecker=beartype.beartype)
 class VanillaObjective(Objective):
@@ -4000,6 +4017,7 @@ class VanillaObjective(Objective):
         x_hat: Float[Tensor, "batch d_model"],
     ) -> VanillaLoss:
         # Some values of x and x_hat can be very large. We can calculate a safe MSE
+        print(x_hat.shape, x.shape)
         mse_loss = mean_squared_err(x_hat, x)
 
         mse_loss = mse_loss.mean()
@@ -4011,6 +4029,7 @@ class VanillaObjective(Objective):
 
 
 @jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True, slots=True)
 class MatryoshkaLoss(Loss):
     """The composite loss terms for an training batch."""
 
@@ -4039,7 +4058,7 @@ def get_objective(cfg: config.Objective) -> Objective:
 
 @jaxtyped(typechecker=beartype.beartype)
 def ref_mean_squared_err(
-    x_hat: Float[Tensor, "*d"], x: Float[Tensor, "*d"], norm: bool = True
+    x_hat: Float[Tensor, "*d"], x: Float[Tensor, "*d"], norm: bool = False
 ) -> Float[Tensor, "*d"]:
     mse_loss = torch.pow((x_hat - x.float()), 2)
 
@@ -4064,18 +4083,47 @@ def mean_squared_err(
 
     return mse * upper * upper
 
+>>>> nn/test_modeling.py
+import hypothesis.strategies as st
+import torch
+from hypothesis import given, settings
+
+from .. import config
+from . import modeling
+
+
+def test_factories():
+    assert isinstance(modeling.get_activation(config.Relu()), torch.nn.ReLU)
+
+
+@st.composite
+def relu_cfgs(draw):
+    d_vit = draw(st.sampled_from([32, 64, 128]))
+    exp = draw(st.sampled_from([2, 4]))
+    return config.Relu(d_vit=d_vit, exp_factor=exp)
+
+
+@settings(deadline=None)
+@given(cfg=relu_cfgs(), batch=st.integers(min_value=1, max_value=4))
+def test_sae_shapes(cfg, batch):
+    sae = modeling.SparseAutoencoder(cfg)
+    x = torch.randn(batch, cfg.d_vit)
+    x_hat, f = sae(x)
+    assert x_hat.shape == (batch, cfg.d_vit)
+    assert f.shape == (batch, cfg.d_sae)
+
 >>>> nn/test_objectives.py
 """
 Uses [hypothesis]() and [hypothesis-torch](https://hypothesis-torch.readthedocs.io/en/stable/compatability/) to generate test cases to compare our normalized MSE implementation to a reference MSE implementation.
 """
 
 import hypothesis
+import hypothesis.strategies as st
 import hypothesis_torch
 import pytest
 import torch
-from jaxtyping import Float
-from torch import Tensor
 
+from .. import config
 from . import objectives
 
 
@@ -4107,23 +4155,53 @@ def test_safe_mse_large_x():
     x = torch.full((3, 2), 3e28, dtype=torch.float)
     x_hat = torch.ones((3, 2), dtype=torch.float)
 
-    ref = objectives.ref_mean_squared_err(x_hat, x)
+    ref = objectives.ref_mean_squared_err(x_hat, x, norm=True)
     assert ref.isnan().any()
 
-    safe = objectives.mean_squared_err(x_hat, x)
+    safe = objectives.mean_squared_err(x_hat, x, norm=True)
     assert not safe.isnan().any()
 
 
-@pytest.mark.slow
-@hypothesis.settings(suppress_health_check=[hypothesis.HealthCheck.too_slow])
-@hypothesis.given(
-    x_hat=hypothesis_torch.tensor_strategy(dtype=torch.float32, shape=(1, 2, 3)),
-    x=hypothesis_torch.tensor_strategy(dtype=torch.float32, shape=(1, 2, 3)),
-)
-def test_safe_mse_hypothesis(x_hat: Float[Tensor, "1 2 3"], x: Float[Tensor, "1 2 3"]):
-    hypothesis.assume((torch.linalg.norm(x, axis=-1) > 1e-15).all())
-    hypothesis.assume(not x.isinf().all())
+def test_factories():
+    assert isinstance(
+        objectives.get_objective(config.Vanilla()), objectives.VanillaObjective
+    )
 
+
+# basic element generator
+finite32 = st.floats(
+    min_value=-1e9,
+    max_value=1e9,
+    allow_nan=False,
+    allow_infinity=False,
+    width=32,
+)
+
+tensor123 = hypothesis_torch.tensor_strategy(
+    dtype=torch.float32,
+    shape=(1, 2, 3),
+    elements=finite32,
+    layout=torch.strided,
+    device=torch.device("cpu"),
+)
+
+
+@st.composite
+def tensor_pair(draw):
+    x_hat = draw(tensor123)
+    x = draw(tensor123)
+    # ensure denominator in your safe-mse is not zero
+    hypothesis.assume(torch.linalg.norm(x, ord=2, dim=-1).max() > 1e-8)
+    return x_hat, x
+
+
+@pytest.mark.slow
+@hypothesis.settings(
+    suppress_health_check=[hypothesis.HealthCheck.too_slow], deadline=None
+)
+@hypothesis.given(pair=tensor_pair())
+def test_safe_mse_hypothesis(pair):
+    x_hat, x = pair  # both finite, same device/layout
     expected = objectives.ref_mean_squared_err(x_hat, x)
     actual = objectives.mean_squared_err(x_hat, x)
     torch.testing.assert_close(actual, expected)
@@ -4367,6 +4445,8 @@ def test_shard_writer_and_dataset_e2e():
             print(f"Batch {b} matched.")
 
 >>>> test_config.py
+import pytest
+
 from . import config
 
 
@@ -4442,7 +4522,25 @@ def test_expand_multiple():
 
     assert expected == actual
 
+
+# every union alias is exhaustive: constructing an unknown class must fail
+@pytest.mark.parametrize(
+    "alias, members",
+    [
+        (config.SparseAutoencoder, {config.Relu, config.JumpRelu}),
+        (config.Objective, {config.Vanilla, config.Matryoshka}),
+        (
+            config.DatasetConfig,
+            {config.ImagenetDataset, config.ImageFolderDataset, config.Ade20kDataset},
+        ),
+    ],
+)
+def test_union_is_exhaustive(alias, members):
+    assert members == set(alias.__args__)
+
 >>>> test_training.py
+import torch
+
 from . import config, training
 
 
@@ -4501,35 +4599,54 @@ def test_split_cfgs_on_multiple_keys_with_multiple_per_key():
 
 def test_split_cfgs_no_bad_keys():
     cfgs = [
-        config.Train(n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=1e-4)),
-        config.Train(n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=2e-4)),
-        config.Train(n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=3e-4)),
-        config.Train(n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=4e-4)),
-        config.Train(n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=5e-4)),
+        config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=1e-4)),
+        config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=2e-4)),
+        config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=3e-4)),
+        config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=4e-4)),
+        config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=5e-4)),
     ]
     expected = [
         [
-            config.Train(
-                n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=1e-4)
-            ),
-            config.Train(
-                n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=2e-4)
-            ),
-            config.Train(
-                n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=3e-4)
-            ),
-            config.Train(
-                n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=4e-4)
-            ),
-            config.Train(
-                n_patches=12, sae=config.SparseAutoencoder(sparsity_coeff=5e-4)
-            ),
+            config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=1e-4)),
+            config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=2e-4)),
+            config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=3e-4)),
+            config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=4e-4)),
+            config.Train(n_patches=12, objective=config.Vanilla(sparsity_coeff=5e-4)),
         ]
     ]
 
     actual = training.split_cfgs(cfgs)
 
     assert actual == expected
+
+
+class DummyDS(torch.utils.data.Dataset):
+    def __init__(self, n, d):
+        self.x = torch.randn(n, d)
+
+    def __getitem__(self, i):
+        return dict(act=self.x[i])
+
+    def __len__(self):
+        return len(self.x)
+
+
+def test_one_training_step(monkeypatch):
+    cfg = config.Train(
+        track=False, sae_batch_size=8, data=config.DataLoad(), n_patches=64
+    )
+
+    # monkey-patch Dataset/loader used in activations module
+    from . import activations
+
+    monkeypatch.setattr(activations, "Dataset", lambda _: DummyDS(32, cfg.sae.d_vit))
+    monkeypatch.setattr(activations, "get_dataloader", lambda *a, **k: None)  # not used
+
+    # run a single loop
+    from . import training
+
+    ids = training.main([cfg])  # should not raise
+    assert len(ids) == 1
 
 >>>> test_visuals.py
 import torch
@@ -4565,9 +4682,10 @@ import beartype
 import einops
 import numpy as np
 import torch
-import wandb
 from jaxtyping import Float
 from torch import Tensor
+
+import wandb
 
 from . import activations, config, helpers, nn
 
@@ -4595,17 +4713,17 @@ def init_b_dec_batched(saes: torch.nn.ModuleList, dataset: activations.Dataset):
 
 @beartype.beartype
 def make_saes(
-    cfgs: list[config.SparseAutoencoder],
-) -> tuple[torch.nn.ModuleList, list[dict[str, object]]]:
-    param_groups = []
-    saes = []
-    for cfg in cfgs:
-        sae = nn.SparseAutoencoder(cfg)
+    cfgs: list[tuple[config.SparseAutoencoder, config.Objective]],
+) -> tuple[torch.nn.ModuleList, torch.nn.ModuleList, list[dict[str, object]]]:
+    saes, objectives, param_groups = [], [], []
+    for sae_cfg, obj_cfg in cfgs:
+        sae = nn.SparseAutoencoder(sae_cfg)
         saes.append(sae)
         # Use an empty LR because our first step is warmup.
         param_groups.append({"params": sae.parameters(), "lr": 0.0})
+        objectives.append(nn.get_objective(obj_cfg))
 
-    return torch.nn.ModuleList(saes), param_groups
+    return torch.nn.ModuleList(saes), torch.nn.ModuleList(objectives), param_groups
 
 
 ##################
@@ -4630,7 +4748,9 @@ class ParallelWandbRun:
         self.mode = mode
         self.tags = tags
 
-        self.live_run = wandb.init(project=project, config=cfg, mode=mode, tags=tags)
+        self.live_run = wandb.init(
+            project=project, config=dataclasses.asdict(cfg), mode=mode, tags=tags
+        )
 
         self.metric_queues: list[MetricQueue] = [[] for _ in self.cfgs]
 
@@ -4648,7 +4768,7 @@ class ParallelWandbRun:
         for queue, cfg in zip(self.metric_queues, self.cfgs):
             run = wandb.init(
                 project=self.project,
-                config=cfg,
+                config=dataclasses.asdict(cfg),
                 mode=self.mode,
                 tags=self.tags + ["queued"],
             )
@@ -4662,9 +4782,9 @@ class ParallelWandbRun:
 
 @beartype.beartype
 def main(cfgs: list[config.Train]) -> list[str]:
-    saes, run, steps = train(cfgs)
+    saes, objectives, run, steps = train(cfgs)
     # Cheap(-ish) evaluation
-    eval_metrics = evaluate(cfgs, saes)
+    eval_metrics = evaluate(cfgs, saes, objectives)
     metrics = [metric.for_wandb() for metric in eval_metrics]
     run.log(metrics, step=steps)
     ids = run.finish()
@@ -4702,7 +4822,7 @@ def main(cfgs: list[config.Train]) -> list[str]:
 @beartype.beartype
 def train(
     cfgs: list[config.Train],
-) -> tuple[torch.nn.ModuleList, ParallelWandbRun, int]:
+) -> tuple[torch.nn.ModuleList, torch.nn.ModuleList, ParallelWandbRun, int]:
     """
     Explicitly declare the optimizer, schedulers, dataloader, etc outside of `main` so that all the variables are dropped from scope and can be garbage collected.
     """
@@ -4721,7 +4841,7 @@ def train(
         torch.backends.cudnn.deterministic = False
 
     dataset = activations.Dataset(cfg.data)
-    saes, param_groups = make_saes([c.sae for c in cfgs])
+    saes, objectives, param_groups = make_saes([(c.sae, c.objective) for c in cfgs])
 
     mode = "online" if cfg.track else "disabled"
     tags = [cfg.tag] if cfg.tag else []
@@ -4730,7 +4850,7 @@ def train(
     optimizer = torch.optim.Adam(param_groups, fused=True)
     lr_schedulers = [Warmup(0.0, c.lr, c.n_lr_warmup) for c in cfgs]
     sparsity_schedulers = [
-        Warmup(0.0, c.sae.sparsity_coeff, c.n_sparsity_warmup) for c in cfgs
+        Warmup(0.0, c.objective.sparsity_coeff, c.n_sparsity_warmup) for c in cfgs
     ]
 
     dataloader = torch.utils.data.DataLoader(
@@ -4741,6 +4861,8 @@ def train(
 
     saes.train()
     saes = saes.to(cfg.device)
+    objectives.train()
+    objectives = objectives.to(cfg.device)
 
     global_step, n_patches_seen = 0, 0
 
@@ -4748,8 +4870,11 @@ def train(
         acts_BD = batch["act"].to(cfg.device, non_blocking=True)
         for sae in saes:
             sae.normalize_w_dec()
-        # Forward passes
-        _, _, losses = zip(*(sae(acts_BD) for sae in saes))
+        # Forward passes and loss calculations.
+        losses = []
+        for sae, objective in zip(saes, objectives):
+            x_hat, f_x = sae(acts_BD)
+            losses.append(objective(acts_BD, f_x, x_hat))
 
         n_patches_seen += len(acts_BD)
 
@@ -4757,27 +4882,22 @@ def train(
             if (global_step + 1) % cfg.log_every == 0:
                 metrics = [
                     {
-                        "losses/mse": loss.mse.item(),
-                        "losses/l1": loss.l1.item(),
-                        "losses/sparsity": loss.sparsity.item(),
-                        "losses/loss": loss.loss.item(),
-                        "metrics/l0": loss.l0.item(),
-                        "metrics/l1": loss.l1.item(),
+                        **loss.metrics(),
                         "progress/n_patches_seen": n_patches_seen,
                         "progress/learning_rate": group["lr"],
-                        "progress/sparsity_coeff": sae.sparsity_coeff,
+                        "progress/sparsity_coeff": objective.sparsity_coeff,
                     }
-                    for loss, sae, group in zip(losses, saes, optimizer.param_groups)
+                    for loss, sae, objective, group in zip(
+                        losses, saes, objectives, optimizer.param_groups
+                    )
                 ]
                 run.log(metrics, step=global_step)
 
                 logger.info(
-                    "loss: %.5f, mse loss: %.5f, sparsity loss: %.5f, l0: %.5f, l1: %.5f",
-                    losses[0].loss.item(),
-                    losses[0].mse.item(),
-                    losses[0].sparsity.item(),
-                    losses[0].l0.item(),
-                    losses[0].l1.item(),
+                    ", ".join(
+                        f"{key}: {value:.5f}"
+                        for key, value in losses[0].metrics().items()
+                    )
                 )
 
         for loss in losses:
@@ -4792,15 +4912,15 @@ def train(
         for param_group, scheduler in zip(optimizer.param_groups, lr_schedulers):
             param_group["lr"] = scheduler.step()
 
-        for sae, scheduler in zip(saes, sparsity_schedulers):
-            sae.sparsity_coeff = scheduler.step()
+        for objective, scheduler in zip(objectives, sparsity_schedulers):
+            objective.sparsity_coeff = scheduler.step()
 
         # Don't need these anymore.
         optimizer.zero_grad()
 
         global_step += 1
 
-    return saes, run, global_step
+    return saes, objectives, run, global_step
 
 
 @beartype.beartype
@@ -4843,7 +4963,9 @@ class EvalMetrics:
 
 @beartype.beartype
 @torch.no_grad()
-def evaluate(cfgs: list[config.Train], saes: torch.nn.ModuleList) -> list[EvalMetrics]:
+def evaluate(
+    cfgs: list[config.Train], saes: torch.nn.ModuleList, objectives: torch.nn.ModuleList
+) -> list[EvalMetrics]:
     """
     Evaluates SAE quality by counting the number of dead features and the number of dense features.
     Also makes histogram plots to help human qualitative comparison.
@@ -4876,8 +4998,9 @@ def evaluate(cfgs: list[config.Train], saes: torch.nn.ModuleList) -> list[EvalMe
 
     for batch in helpers.progress(dataloader, desc="eval", every=cfg.log_every):
         acts_BD = batch["act"].to(cfg.device, non_blocking=True)
-        for i, sae in enumerate(saes):
-            _, f_x_BS, loss = sae(acts_BD)
+        for i, (sae, objective) in enumerate(zip(saes, objectives)):
+            x_hat_BD, f_x_BS = sae(acts_BD)
+            loss = objective(acts_BD, f_x_BS, x_hat_BD)
             n_fired[i] += einops.reduce(f_x_BS > 0, "batch d_sae -> d_sae", "sum").cpu()
             values[i] += einops.reduce(f_x_BS, "batch d_sae -> d_sae", "sum").cpu()
             total_l0[i] += loss.l0.cpu()

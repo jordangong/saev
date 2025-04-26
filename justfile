@@ -4,7 +4,7 @@ docs: lint
     uv run pdoc3 --force --html --output-dir docs --config latex_math=True saev contrib
 
 test: lint
-    uv run pytest --cov saev --cov-report term --cov-report json --json-report --json-report-file pytest.json -n auto saev || true
+    uv run pytest --cov saev --cov-report term --cov-report json --json-report --json-report-file pytest.json -n 32 saev || true
     uv run coverage-badge -o docs/coverage.svg -f
     uv run scripts/regressions.py
 

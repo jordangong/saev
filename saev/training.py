@@ -11,9 +11,10 @@ import beartype
 import einops
 import numpy as np
 import torch
-import wandb
 from jaxtyping import Float
 from torch import Tensor
+
+import wandb
 
 from . import activations, config, helpers, nn
 
@@ -41,17 +42,17 @@ def init_b_dec_batched(saes: torch.nn.ModuleList, dataset: activations.Dataset):
 
 @beartype.beartype
 def make_saes(
-    cfgs: list[config.SparseAutoencoder],
-) -> tuple[torch.nn.ModuleList, list[dict[str, object]]]:
-    param_groups = []
-    saes = []
-    for cfg in cfgs:
-        sae = nn.SparseAutoencoder(cfg)
+    cfgs: list[tuple[config.SparseAutoencoder, config.Objective]],
+) -> tuple[torch.nn.ModuleList, torch.nn.ModuleList, list[dict[str, object]]]:
+    saes, objectives, param_groups = [], [], []
+    for sae_cfg, obj_cfg in cfgs:
+        sae = nn.SparseAutoencoder(sae_cfg)
         saes.append(sae)
         # Use an empty LR because our first step is warmup.
         param_groups.append({"params": sae.parameters(), "lr": 0.0})
+        objectives.append(nn.get_objective(obj_cfg))
 
-    return torch.nn.ModuleList(saes), param_groups
+    return torch.nn.ModuleList(saes), torch.nn.ModuleList(objectives), param_groups
 
 
 ##################
@@ -76,7 +77,9 @@ class ParallelWandbRun:
         self.mode = mode
         self.tags = tags
 
-        self.live_run = wandb.init(project=project, config=cfg, mode=mode, tags=tags)
+        self.live_run = wandb.init(
+            project=project, config=dataclasses.asdict(cfg), mode=mode, tags=tags
+        )
 
         self.metric_queues: list[MetricQueue] = [[] for _ in self.cfgs]
 
@@ -94,7 +97,7 @@ class ParallelWandbRun:
         for queue, cfg in zip(self.metric_queues, self.cfgs):
             run = wandb.init(
                 project=self.project,
-                config=cfg,
+                config=dataclasses.asdict(cfg),
                 mode=self.mode,
                 tags=self.tags + ["queued"],
             )
@@ -108,9 +111,9 @@ class ParallelWandbRun:
 
 @beartype.beartype
 def main(cfgs: list[config.Train]) -> list[str]:
-    saes, run, steps = train(cfgs)
+    saes, objectives, run, steps = train(cfgs)
     # Cheap(-ish) evaluation
-    eval_metrics = evaluate(cfgs, saes)
+    eval_metrics = evaluate(cfgs, saes, objectives)
     metrics = [metric.for_wandb() for metric in eval_metrics]
     run.log(metrics, step=steps)
     ids = run.finish()
@@ -148,7 +151,7 @@ def main(cfgs: list[config.Train]) -> list[str]:
 @beartype.beartype
 def train(
     cfgs: list[config.Train],
-) -> tuple[torch.nn.ModuleList, ParallelWandbRun, int]:
+) -> tuple[torch.nn.ModuleList, torch.nn.ModuleList, ParallelWandbRun, int]:
     """
     Explicitly declare the optimizer, schedulers, dataloader, etc outside of `main` so that all the variables are dropped from scope and can be garbage collected.
     """
@@ -167,7 +170,7 @@ def train(
         torch.backends.cudnn.deterministic = False
 
     dataset = activations.Dataset(cfg.data)
-    saes, param_groups = make_saes([c.sae for c in cfgs])
+    saes, objectives, param_groups = make_saes([(c.sae, c.objective) for c in cfgs])
 
     mode = "online" if cfg.track else "disabled"
     tags = [cfg.tag] if cfg.tag else []
@@ -176,7 +179,7 @@ def train(
     optimizer = torch.optim.Adam(param_groups, fused=True)
     lr_schedulers = [Warmup(0.0, c.lr, c.n_lr_warmup) for c in cfgs]
     sparsity_schedulers = [
-        Warmup(0.0, c.sae.sparsity_coeff, c.n_sparsity_warmup) for c in cfgs
+        Warmup(0.0, c.objective.sparsity_coeff, c.n_sparsity_warmup) for c in cfgs
     ]
 
     dataloader = torch.utils.data.DataLoader(
@@ -187,6 +190,8 @@ def train(
 
     saes.train()
     saes = saes.to(cfg.device)
+    objectives.train()
+    objectives = objectives.to(cfg.device)
 
     global_step, n_patches_seen = 0, 0
 
@@ -194,8 +199,11 @@ def train(
         acts_BD = batch["act"].to(cfg.device, non_blocking=True)
         for sae in saes:
             sae.normalize_w_dec()
-        # Forward passes
-        _, _, losses = zip(*(sae(acts_BD) for sae in saes))
+        # Forward passes and loss calculations.
+        losses = []
+        for sae, objective in zip(saes, objectives):
+            x_hat, f_x = sae(acts_BD)
+            losses.append(objective(acts_BD, f_x, x_hat))
 
         n_patches_seen += len(acts_BD)
 
@@ -203,27 +211,22 @@ def train(
             if (global_step + 1) % cfg.log_every == 0:
                 metrics = [
                     {
-                        "losses/mse": loss.mse.item(),
-                        "losses/l1": loss.l1.item(),
-                        "losses/sparsity": loss.sparsity.item(),
-                        "losses/loss": loss.loss.item(),
-                        "metrics/l0": loss.l0.item(),
-                        "metrics/l1": loss.l1.item(),
+                        **loss.metrics(),
                         "progress/n_patches_seen": n_patches_seen,
                         "progress/learning_rate": group["lr"],
-                        "progress/sparsity_coeff": sae.sparsity_coeff,
+                        "progress/sparsity_coeff": objective.sparsity_coeff,
                     }
-                    for loss, sae, group in zip(losses, saes, optimizer.param_groups)
+                    for loss, sae, objective, group in zip(
+                        losses, saes, objectives, optimizer.param_groups
+                    )
                 ]
                 run.log(metrics, step=global_step)
 
                 logger.info(
-                    "loss: %.5f, mse loss: %.5f, sparsity loss: %.5f, l0: %.5f, l1: %.5f",
-                    losses[0].loss.item(),
-                    losses[0].mse.item(),
-                    losses[0].sparsity.item(),
-                    losses[0].l0.item(),
-                    losses[0].l1.item(),
+                    ", ".join(
+                        f"{key}: {value:.5f}"
+                        for key, value in losses[0].metrics().items()
+                    )
                 )
 
         for loss in losses:
@@ -238,15 +241,15 @@ def train(
         for param_group, scheduler in zip(optimizer.param_groups, lr_schedulers):
             param_group["lr"] = scheduler.step()
 
-        for sae, scheduler in zip(saes, sparsity_schedulers):
-            sae.sparsity_coeff = scheduler.step()
+        for objective, scheduler in zip(objectives, sparsity_schedulers):
+            objective.sparsity_coeff = scheduler.step()
 
         # Don't need these anymore.
         optimizer.zero_grad()
 
         global_step += 1
 
-    return saes, run, global_step
+    return saes, objectives, run, global_step
 
 
 @beartype.beartype
@@ -289,7 +292,9 @@ class EvalMetrics:
 
 @beartype.beartype
 @torch.no_grad()
-def evaluate(cfgs: list[config.Train], saes: torch.nn.ModuleList) -> list[EvalMetrics]:
+def evaluate(
+    cfgs: list[config.Train], saes: torch.nn.ModuleList, objectives: torch.nn.ModuleList
+) -> list[EvalMetrics]:
     """
     Evaluates SAE quality by counting the number of dead features and the number of dense features.
     Also makes histogram plots to help human qualitative comparison.
@@ -322,8 +327,9 @@ def evaluate(cfgs: list[config.Train], saes: torch.nn.ModuleList) -> list[EvalMe
 
     for batch in helpers.progress(dataloader, desc="eval", every=cfg.log_every):
         acts_BD = batch["act"].to(cfg.device, non_blocking=True)
-        for i, sae in enumerate(saes):
-            _, f_x_BS, loss = sae(acts_BD)
+        for i, (sae, objective) in enumerate(zip(saes, objectives)):
+            x_hat_BD, f_x_BS = sae(acts_BD)
+            loss = objective(acts_BD, f_x_BS, x_hat_BD)
             n_fired[i] += einops.reduce(f_x_BS > 0, "batch d_sae -> d_sae", "sum").cpu()
             values[i] += einops.reduce(f_x_BS, "batch d_sae -> d_sae", "sum").cpu()
             total_l0[i] += loss.l0.cpu()

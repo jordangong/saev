@@ -21,7 +21,7 @@ import beartype
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class ImagenetDataset:
     """Configuration for HuggingFace Imagenet."""
 
@@ -42,7 +42,7 @@ class ImagenetDataset:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class ImageFolderDataset:
     """Configuration for a generic image folder dataset."""
 
@@ -59,7 +59,7 @@ class ImageFolderDataset:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Ade20kDataset:
     """ """
 
@@ -80,7 +80,7 @@ DatasetConfig = ImagenetDataset | ImageFolderDataset | Ade20kDataset
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Activations:
     """
     Configuration for calculating and saving ViT activations.
@@ -126,7 +126,7 @@ class Activations:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class DataLoad:
     """
     Configuration for loading activation data from disk.
@@ -149,7 +149,7 @@ class DataLoad:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Relu:
     d_vit: int = 1024
     exp_factor: int = 16
@@ -169,7 +169,7 @@ class Relu:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class JumpRelu:
     """Implementation of the JumpReLU activation function for SAEs. Not implemented."""
 
@@ -180,14 +180,14 @@ SparseAutoencoder = Relu | JumpRelu
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Vanilla:
     sparsity_coeff: float = 4e-4
     """How much to weight sparsity loss term."""
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Matryoshka:
     """
     Config for the Matryoshka loss for another arbitrary SAE class.
@@ -203,7 +203,7 @@ Objective = Vanilla | Matryoshka
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Train:
     """
     Configuration for training a sparse autoencoder on a vision transformer.
@@ -253,7 +253,7 @@ class Train:
 
 
 @beartype.beartype
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class Visuals:
     """Configuration for generating visuals from trained SAEs."""
 

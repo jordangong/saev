@@ -1,3 +1,4 @@
+import dataclasses
 import typing
 
 import beartype
@@ -9,12 +10,16 @@ from .. import config
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class Loss(typing.NamedTuple):
+@dataclasses.dataclass(frozen=True, slots=True)
+class Loss:
     """The loss term for an autoencoder training batch."""
 
     @property
     def loss(self) -> Float[Tensor, ""]:
         """Total loss."""
+        raise NotImplementedError()
+
+    def metrics(self) -> dict[str, object]:
         raise NotImplementedError()
 
 
@@ -30,6 +35,7 @@ class Objective(torch.nn.Module):
 
 
 @jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True, slots=True)
 class VanillaLoss(Loss):
     """The vanilla loss terms for an training batch."""
 
@@ -47,6 +53,15 @@ class VanillaLoss(Loss):
         """Total loss."""
         return self.mse + self.sparsity
 
+    def metrics(self) -> dict[str, object]:
+        return {
+            "loss": self.loss.item(),
+            "mse": self.mse.item(),
+            "l0": self.l0.item(),
+            "l1": self.l1.item(),
+            "sparsity": self.sparsity.item(),
+        }
+
 
 @jaxtyped(typechecker=beartype.beartype)
 class VanillaObjective(Objective):
@@ -61,6 +76,7 @@ class VanillaObjective(Objective):
         x_hat: Float[Tensor, "batch d_model"],
     ) -> VanillaLoss:
         # Some values of x and x_hat can be very large. We can calculate a safe MSE
+        print(x_hat.shape, x.shape)
         mse_loss = mean_squared_err(x_hat, x)
 
         mse_loss = mse_loss.mean()
@@ -72,6 +88,7 @@ class VanillaObjective(Objective):
 
 
 @jaxtyped(typechecker=beartype.beartype)
+@dataclasses.dataclass(frozen=True, slots=True)
 class MatryoshkaLoss(Loss):
     """The composite loss terms for an training batch."""
 
@@ -100,7 +117,7 @@ def get_objective(cfg: config.Objective) -> Objective:
 
 @jaxtyped(typechecker=beartype.beartype)
 def ref_mean_squared_err(
-    x_hat: Float[Tensor, "*d"], x: Float[Tensor, "*d"], norm: bool = True
+    x_hat: Float[Tensor, "*d"], x: Float[Tensor, "*d"], norm: bool = False
 ) -> Float[Tensor, "*d"]:
     mse_loss = torch.pow((x_hat - x.float()), 2)
 

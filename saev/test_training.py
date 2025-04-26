@@ -1,3 +1,5 @@
+import torch
+
 from . import config, training
 
 
@@ -75,3 +77,32 @@ def test_split_cfgs_no_bad_keys():
     actual = training.split_cfgs(cfgs)
 
     assert actual == expected
+
+
+class DummyDS(torch.utils.data.Dataset):
+    def __init__(self, n, d):
+        self.x = torch.randn(n, d)
+
+    def __getitem__(self, i):
+        return dict(act=self.x[i])
+
+    def __len__(self):
+        return len(self.x)
+
+
+def test_one_training_step(monkeypatch):
+    cfg = config.Train(
+        track=False, sae_batch_size=8, data=config.DataLoad(), n_patches=64
+    )
+
+    # monkey-patch Dataset/loader used in activations module
+    from . import activations
+
+    monkeypatch.setattr(activations, "Dataset", lambda _: DummyDS(32, cfg.sae.d_vit))
+    monkeypatch.setattr(activations, "get_dataloader", lambda *a, **k: None)  # not used
+
+    # run a single loop
+    from . import training
+
+    ids = training.main([cfg])  # should not raise
+    assert len(ids) == 1

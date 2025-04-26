@@ -2,6 +2,7 @@
 Neural network architectures for sparse autoencoders.
 """
 
+import dataclasses
 import io
 import json
 import logging
@@ -124,7 +125,7 @@ class SparseAutoencoder(torch.nn.Module):
 @beartype.beartype
 def get_activation(cfg: config.SparseAutoencoder) -> torch.nn.Module:
     if isinstance(cfg, config.Relu):
-        return torch.nn.Relu()
+        return torch.nn.ReLU()
     elif isinstance(cfg, config.JumpRelu):
         raise NotImplementedError()
     else:
@@ -140,7 +141,7 @@ def dump(fpath: str, sae: SparseAutoencoder):
         fpath: filepath to save checkpoint to.
         sae: sparse autoencoder checkpoint to save.
     """
-    kwargs = vars(sae.cfg)
+    kwargs = dataclasses.asdict(sae.cfg)
 
     os.makedirs(os.path.dirname(fpath), exist_ok=True)
     with open(fpath, "wb") as fd:
