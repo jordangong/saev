@@ -37,7 +37,7 @@ hljs.highlightAll();
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="saev.training.evaluate"><code class="name flex">
-<span>def <span class="ident">evaluate</span></span>(<span>cfgs: list[<a title="saev.config.Train" href="config.html#saev.config.Train">Train</a>],<br>saes: torch.nn.modules.container.ModuleList) ‑> list[<a title="saev.training.EvalMetrics" href="#saev.training.EvalMetrics">EvalMetrics</a>]</span>
+<span>def <span class="ident">evaluate</span></span>(<span>cfgs: list[<a title="saev.config.Train" href="config.html#saev.config.Train">Train</a>],<br>saes: torch.nn.modules.container.ModuleList,<br>objectives: torch.nn.modules.container.ModuleList) ‑> list[<a title="saev.training.EvalMetrics" href="#saev.training.EvalMetrics">EvalMetrics</a>]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Evaluates SAE quality by counting the number of dead features and the number of dense features.
@@ -66,7 +66,7 @@ Also makes histogram plots to help human qualitative comparison.</p>
 <div class="desc"></div>
 </dd>
 <dt id="saev.training.make_saes"><code class="name flex">
-<span>def <span class="ident">make_saes</span></span>(<span>cfgs: list[<a title="saev.config.SparseAutoencoder" href="config.html#saev.config.SparseAutoencoder">SparseAutoencoder</a>]) ‑> tuple[torch.nn.modules.container.ModuleList, list[dict[str, object]]]</span>
+<span>def <span class="ident">make_saes</span></span>(<span>cfgs: list[tuple[<a title="saev.config.Relu" href="config.html#saev.config.Relu">Relu</a> | <a title="saev.config.JumpRelu" href="config.html#saev.config.JumpRelu">JumpRelu</a>, <a title="saev.config.Vanilla" href="config.html#saev.config.Vanilla">Vanilla</a> | <a title="saev.config.Matryoshka" href="config.html#saev.config.Matryoshka">Matryoshka</a>]]) ‑> tuple[torch.nn.modules.container.ModuleList, torch.nn.modules.container.ModuleList, list[dict[str, object]]]</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -82,7 +82,7 @@ Also makes histogram plots to help human qualitative comparison.</p>
 <p>A list of lists, where the configs in each sublist do not differ in any keys that are in <code>CANNOT_PARALLELIZE</code>. This means that each sublist is a valid "parallel" set of configs for <code><a title="saev.training.train" href="#saev.training.train">train()</a></code>.</p></div>
 </dd>
 <dt id="saev.training.train"><code class="name flex">
-<span>def <span class="ident">train</span></span>(<span>cfgs: list[<a title="saev.config.Train" href="config.html#saev.config.Train">Train</a>]) ‑> tuple[torch.nn.modules.container.ModuleList, <a title="saev.training.ParallelWandbRun" href="#saev.training.ParallelWandbRun">ParallelWandbRun</a>, int]</span>
+<span>def <span class="ident">train</span></span>(<span>cfgs: list[<a title="saev.config.Train" href="config.html#saev.config.Train">Train</a>]) ‑> tuple[torch.nn.modules.container.ModuleList, torch.nn.modules.container.ModuleList, <a title="saev.training.ParallelWandbRun" href="#saev.training.ParallelWandbRun">ParallelWandbRun</a>, int]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Explicitly declare the optimizer, schedulers, dataloader, etc outside of <code><a title="saev.training.main" href="#saev.training.main">main()</a></code> so that all the variables are dropped from scope and can be garbage collected.</p></div>
@@ -255,7 +255,9 @@ class EvalMetrics:
         self.mode = mode
         self.tags = tags
 
-        self.live_run = wandb.init(project=project, config=cfg, mode=mode, tags=tags)
+        self.live_run = wandb.init(
+            project=project, config=dataclasses.asdict(cfg), mode=mode, tags=tags
+        )
 
         self.metric_queues: list[MetricQueue] = [[] for _ in self.cfgs]
 
@@ -273,7 +275,7 @@ class EvalMetrics:
         for queue, cfg in zip(self.metric_queues, self.cfgs):
             run = wandb.init(
                 project=self.project,
-                config=cfg,
+                config=dataclasses.asdict(cfg),
                 mode=self.mode,
                 tags=self.tags + [&#34;queued&#34;],
             )

@@ -98,8 +98,12 @@ class MatryoshkaLoss(Loss):
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class MatryoshkaObjective(torch.nn.Module):
+class MatryoshkaObjective(Objective):
     """Torch module for calculating the matryoshka loss for an SAE."""
+
+    def __init__(self, cfg: config.Matryoshka):
+        super().__init__()
+        self.cfg = cfg
 
     def forward(self) -> "MatryoshkaLoss.Loss":
         raise NotImplementedError()

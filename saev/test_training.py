@@ -106,3 +106,28 @@ def test_one_training_step(monkeypatch):
 
     ids = training.main([cfg])  # should not raise
     assert len(ids) == 1
+
+
+def test_one_training_step_matryoshka(monkeypatch):
+    """A minimal end-to-end training-loop smoke test for the Matryoshka objective."""
+
+    # configuration that uses Matryoshka
+    cfg = config.Train(
+        track=False,
+        sae_batch_size=8,
+        n_patches=64,  # make the run fast.
+        data=config.DataLoad(),
+        objective=config.Matryoshka(),
+    )
+
+    # stub out expensive I/O
+    from . import activations
+
+    monkeypatch.setattr(activations, "Dataset", lambda *_: DummyDS(32, cfg.sae.d_vit))
+    monkeypatch.setattr(activations, "get_dataloader", lambda *_1, **_2: None)
+
+    # run one training job
+    from saev import training
+
+    ids = training.main([cfg])
+    assert len(ids) == 1
