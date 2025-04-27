@@ -271,6 +271,8 @@ class Train:
 
     data: DataLoad = dataclasses.field(default_factory=DataLoad)
     """Data configuration"""
+    shuffle: bool = True
+    """Whether to shuffle the dataset."""
     n_workers: int = 32
     """Number of dataloader workers."""
     n_patches: int = 100_000_000

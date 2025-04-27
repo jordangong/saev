@@ -183,7 +183,10 @@ def train(
     ]
 
     dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=cfg.sae_batch_size, num_workers=cfg.n_workers, shuffle=True
+        dataset,
+        batch_size=cfg.sae_batch_size,
+        num_workers=cfg.n_workers,
+        shuffle=cfg.shuffle,
     )
 
     dataloader = BatchLimiter(dataloader, cfg.n_patches)
