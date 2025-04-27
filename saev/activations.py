@@ -422,8 +422,11 @@ class Dataset(torch.utils.data.Dataset):
         # If either of these are true, we must do this work.
         if self.cfg.scale_mean is True or self.cfg.scale_norm is True:
             # Load a random subset of samples to calculate the mean activation and mean L2 norm.
-            perm = np.random.default_rng(seed=42).permutation(len(self))
-            perm = perm[: cfg.n_random_samples]
+            if self.cfg.random_perm:
+                perm = np.random.default_rng(seed=42).permutation(len(self))
+            else:
+                perm = np.arange(len(self))
+            perm = perm[: self.cfg.n_samples]
 
             samples = [
                 self[p.item()]
