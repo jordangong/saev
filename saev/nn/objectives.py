@@ -76,7 +76,7 @@ class VanillaObjective(Objective):
         x_hat: Float[Tensor, "batch d_model"],
     ) -> VanillaLoss:
         # Some values of x and x_hat can be very large. We can calculate a safe MSE
-        print(x_hat.shape, x.shape)
+        # print(x_hat.shape, x.shape)
         mse_loss = mean_squared_err(x_hat, x)
 
         mse_loss = mse_loss.mean()
