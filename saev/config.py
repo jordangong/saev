@@ -409,6 +409,11 @@ def grid(cfg: Train, sweep_dct: dict[str, object]) -> tuple[list[Train], list[st
         if data_dct:
             dct["data"] = dataclasses.replace(cfg.data, **data_dct)
 
+        # .objective is a nested field that cannot be naively expanded.
+        objective_dct = dct.pop("objective")
+        if objective_dct:
+            dct["objective"] = dataclasses.replace(cfg.objective, **objective_dct)
+
         try:
             cfgs.append(dataclasses.replace(cfg, **dct, seed=cfg.seed + d))
         except Exception as err:
