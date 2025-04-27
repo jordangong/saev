@@ -43,7 +43,7 @@ ignore = ["F722", "E402", "E501"]
 
 [tool.uv]
 package = true
-default-groups = "all"
+default-groups = ["dev"]
 
 [dependency-groups]
 dev = [
