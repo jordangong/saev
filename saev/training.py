@@ -31,10 +31,14 @@ def init_b_dec_batched(saes: torch.nn.ModuleList, dataset: activations.Dataset):
     # Pick random samples using first SAE's seed.
     perm = np.random.default_rng(seed=saes[0].cfg.seed).permutation(len(dataset))
     perm = perm[:n_samples]
-    examples, _, _ = zip(*[
-        dataset[p.item()]
-        for p in helpers.progress(perm, every=25_000, desc="examples to re-init b_dec")
-    ])
+    examples, _, _ = zip(
+        *[
+            dataset[p.item()]
+            for p in helpers.progress(
+                perm, every=25_000, desc="examples to re-init b_dec"
+            )
+        ]
+    )
     vit_acts = torch.stack(examples)
     for sae in saes:
         sae.init_b_dec(vit_acts[: sae.cfg.n_reinit_samples])
@@ -169,6 +173,13 @@ def train(
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.deterministic = False
 
+        if cfg.span_all_devices:
+            num_gpus = torch.cuda.device_count()
+        else:
+            num_gpus = 1
+    else:
+        num_gpus = 0
+
     dataset = activations.Dataset(cfg.data)
     saes, objectives, param_groups = make_saes([(c.sae, c.objective) for c in cfgs])
 
@@ -191,24 +202,34 @@ def train(
 
     dataloader = BatchLimiter(dataloader, cfg.n_patches)
 
+    cfg_device_ids = [0] * len(cfgs)
+    if num_gpus > 1:
+        for i in range(len(cfgs)):
+            cfg_device_ids[i] = (i * num_gpus) // len(cfgs)
+            saes[i] = saes[i].to(f"{cfg.device}:{cfg_device_ids[i]}")
+            objectives[i] = objectives[i].to(f"{cfg.device}:{cfg_device_ids[i]}")
+    else:
+        saes = saes.to(cfg.device)
+        objectives = objectives.to(cfg.device)
     saes.train()
-    saes = saes.to(cfg.device)
     objectives.train()
-    objectives = objectives.to(cfg.device)
 
     global_step, n_patches_seen = 0, 0
 
     for batch in helpers.progress(dataloader, every=cfg.log_every):
-        acts_BD = batch["act"].to(cfg.device, non_blocking=True)
+        if num_gpus > 1:
+            acts_BD = [batch["act"].to(f"{cfg.device}:{i}", non_blocking=True) for i in range(num_gpus)]
+        else:
+            acts_BD = [batch["act"].to(cfg.device, non_blocking=True)]
         for sae in saes:
             sae.normalize_w_dec()
         # Forward passes and loss calculations.
         losses = []
-        for sae, objective in zip(saes, objectives):
-            x_hat, f_x = sae(acts_BD)
-            losses.append(objective(acts_BD, f_x, x_hat))
+        for i, (sae, objective) in enumerate(zip(saes, objectives)):
+            x_hat, f_x = sae(acts_BD[cfg_device_ids[i]])
+            losses.append(objective(acts_BD[cfg_device_ids[i]], f_x, x_hat))
 
-        n_patches_seen += len(acts_BD)
+        n_patches_seen += len(acts_BD[0])
 
         with torch.no_grad():
             if (global_step + 1) % cfg.log_every == 0:
@@ -310,9 +331,24 @@ def evaluate(
     if len(split_cfgs(cfgs)) != 1:
         raise ValueError("Configs are not parallelizeable: {cfgs}.")
 
-    saes.eval()
-
     cfg = cfgs[0]
+
+    if torch.cuda.is_available():
+        if cfg.span_all_devices:
+            num_gpus = torch.cuda.device_count()
+        else:
+            num_gpus = 1
+    else:
+        num_gpus = 0
+
+    cfg_device_ids = [0] * len(cfgs)
+    if num_gpus > 1:
+        for i in range(len(cfgs)):
+            cfg_device_ids[i] = (i * num_gpus) // len(cfgs)
+            saes[i] = saes[i].to(f"{cfg.device}:{cfg_device_ids[i]}")
+    else:
+        saes = saes.to(cfg.device)
+    saes.eval()
 
     almost_dead_lim = 1e-7
     dense_lim = 1e-2
@@ -329,10 +365,13 @@ def evaluate(
     total_mse = torch.zeros(len(cfgs))
 
     for batch in helpers.progress(dataloader, desc="eval", every=cfg.log_every):
-        acts_BD = batch["act"].to(cfg.device, non_blocking=True)
+        if num_gpus > 1:
+            acts_BD = [batch["act"].to(f"{cfg.device}:{i}", non_blocking=True) for i in range(num_gpus)]
+        else:
+            acts_BD = [batch["act"].to(cfg.device, non_blocking=True)]
         for i, (sae, objective) in enumerate(zip(saes, objectives)):
-            x_hat_BD, f_x_BS = sae(acts_BD)
-            loss = objective(acts_BD, f_x_BS, x_hat_BD)
+            x_hat_BD, f_x_BS = sae(acts_BD[cfg_device_ids[i]])
+            loss = objective(acts_BD[cfg_device_ids[i]], f_x_BS, x_hat_BD)
             n_fired[i] += einops.reduce(f_x_BS > 0, "batch d_sae -> d_sae", "sum").cpu()
             values[i] += einops.reduce(f_x_BS, "batch d_sae -> d_sae", "sum").cpu()
             total_l0[i] += loss.l0.cpu()
@@ -393,23 +432,26 @@ class BatchLimiter:
 #####################
 
 
-CANNOT_PARALLELIZE = set([
-    "data",
-    "n_workers",
-    "n_patches",
-    "sae_batch_size",
-    "track",
-    "wandb_project",
-    "tag",
-    "log_every",
-    "ckpt_path",
-    "device",
-    "slurm",
-    "slurm_acct",
-    "log_to",
-    "sae.exp_factor",
-    "sae.d_vit",
-])
+CANNOT_PARALLELIZE = set(
+    [
+        "data",
+        "n_workers",
+        "n_patches",
+        "sae_batch_size",
+        "track",
+        "wandb_project",
+        "tag",
+        "log_every",
+        "ckpt_path",
+        "device",
+        "span_all_devices",
+        "slurm",
+        "slurm_acct",
+        "log_to",
+        "sae.exp_factor",
+        "sae.d_vit",
+    ]
+)
 
 
 @beartype.beartype

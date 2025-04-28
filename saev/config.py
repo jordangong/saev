@@ -99,6 +99,7 @@ class WebDataset:
         import glob
         import os
         import subprocess
+
         import tqdm
 
         # Get all tar files matching the pattern
@@ -306,6 +307,8 @@ class Train:
 
     device: typing.Literal["cuda", "cpu"] = "cuda"
     """Hardware device."""
+    span_all_devices: bool = False
+    """Whether to span all available devices."""
     seed: int = 42
     """Random seed."""
     slurm: bool = False
