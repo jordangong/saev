@@ -146,7 +146,7 @@ class MatryoshkaLoss(Loss):
 </dd>
 <dt id="saev.nn.objectives.MatryoshkaObjective"><code class="flex name class">
 <span>class <span class="ident">MatryoshkaObjective</span></span>
-<span>(</span><span>*args, **kwargs)</span>
+<span>(</span><span>cfg: <a title="saev.config.Matryoshka" href="../config.html#saev.config.Matryoshka">Matryoshka</a>)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Torch module for calculating the matryoshka loss for an SAE.</p>
@@ -156,33 +156,29 @@ class MatryoshkaLoss(Loss):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@jaxtyped(typechecker=beartype.beartype)
-class MatryoshkaObjective(torch.nn.Module):
+class MatryoshkaObjective(Objective):
     &#34;&#34;&#34;Torch module for calculating the matryoshka loss for an SAE.&#34;&#34;&#34;
+
+    def __init__(self, cfg: config.Matryoshka):
+        super().__init__()
+        self.cfg = cfg
 
     def forward(self) -&gt; &#34;MatryoshkaLoss.Loss&#34;:
         raise NotImplementedError()</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
+<li><a title="saev.nn.objectives.Objective" href="#saev.nn.objectives.Objective">Objective</a></li>
 <li>torch.nn.modules.module.Module</li>
 </ul>
-<h3>Methods</h3>
-<dl>
-<dt id="saev.nn.objectives.MatryoshkaObjective.forward"><code class="name flex">
-<span>def <span class="ident">forward</span></span>(<span>self) ‑> Callable[..., Any]</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Define the computation performed at every call.</p>
-<p>Should be overridden by all subclasses.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Although the recipe for forward pass needs to be defined within
-this function, one should call the :class:<code>Module</code> instance afterwards
-instead of this since the former takes care of running the
-registered hooks while the latter silently ignores them.</p>
-</div></div>
-</dd>
-</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="saev.nn.objectives.Objective" href="#saev.nn.objectives.Objective">Objective</a></b></code>:
+<ul class="hlist">
+<li><code><a title="saev.nn.objectives.Objective.forward" href="#saev.nn.objectives.Objective.forward">forward</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 <dt id="saev.nn.objectives.Objective"><code class="flex name class">
 <span>class <span class="ident">Objective</span></span>
@@ -237,6 +233,7 @@ class Objective(torch.nn.Module):
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
+<li><a title="saev.nn.objectives.MatryoshkaObjective" href="#saev.nn.objectives.MatryoshkaObjective">MatryoshkaObjective</a></li>
 <li><a title="saev.nn.objectives.VanillaObjective" href="#saev.nn.objectives.VanillaObjective">VanillaObjective</a></li>
 </ul>
 <h3>Methods</h3>
@@ -444,9 +441,6 @@ class VanillaObjective(Objective):
 </li>
 <li>
 <h4><code><a title="saev.nn.objectives.MatryoshkaObjective" href="#saev.nn.objectives.MatryoshkaObjective">MatryoshkaObjective</a></code></h4>
-<ul class="">
-<li><code><a title="saev.nn.objectives.MatryoshkaObjective.forward" href="#saev.nn.objectives.MatryoshkaObjective.forward">forward</a></code></li>
-</ul>
 </li>
 <li>
 <h4><code><a title="saev.nn.objectives.Objective" href="#saev.nn.objectives.Objective">Objective</a></code></h4>

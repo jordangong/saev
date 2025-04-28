@@ -94,6 +94,33 @@ The main entrypoint to the package is in `__main__`; use `python -m saev --help`
 .. include:: ./inference.md
 """
 
+import importlib.metadata
+import pathlib
+import tomllib  # std-lib in Python ≥3.11
+
+
+def _version_from_pyproject() -> str:
+    """
+    Parse `[project].version` out of pyproject.toml that sits two directories above this file:
+        saev/__init__.py
+        saev/
+        pyproject.toml
+    Returns "0.0.0+unknown" on any error.
+    """
+    try:
+        pp = pathlib.Path(__file__).resolve().parents[1] / "pyproject.toml"
+        with pp.open("rb") as f:
+            data = tomllib.load(f)
+        return data["project"]["version"]
+    except Exception:  # key missing, file missing, bad TOML, ...
+        return "0.0.0+unknown"
+
+
+try:
+    __version__ = importlib.metadata.version("saev")  # installed wheel / editable
+except importlib.metadata.PackageNotFoundError:
+    __version__ = _version_from_pyproject()  # running from source tree
+
 >>>> __main__.py
 import logging
 import tomllib
@@ -3780,6 +3807,8 @@ import io
 import json
 import logging
 import os
+import pathlib
+import subprocess
 import typing
 
 import beartype
@@ -3788,7 +3817,7 @@ import torch
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
-from .. import config
+from .. import __version__, config
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -3914,29 +3943,75 @@ def dump(fpath: str, sae: SparseAutoencoder):
         fpath: filepath to save checkpoint to.
         sae: sparse autoencoder checkpoint to save.
     """
-    kwargs = dataclasses.asdict(sae.cfg)
+    header = {
+        "schema": 1,
+        "cfg": dataclasses.asdict(sae.cfg),
+        "cls": sae.cfg.__class__.__name__,
+        "commit": current_git_commit() or "unknown",
+        "lib": __version__,
+    }
 
     os.makedirs(os.path.dirname(fpath), exist_ok=True)
     with open(fpath, "wb") as fd:
-        kwargs_str = json.dumps(kwargs)
-        fd.write((kwargs_str + "\n").encode("utf-8"))
+        header_str = json.dumps(header)
+        fd.write((header_str + "\n").encode("utf-8"))
         torch.save(sae.state_dict(), fd)
 
 
 @beartype.beartype
-def load(fpath: str, *, device: str = "cpu") -> SparseAutoencoder:
+def load(fpath: str, *, device="cpu") -> SparseAutoencoder:
     """
     Loads a sparse autoencoder from disk.
     """
     with open(fpath, "rb") as fd:
-        kwargs = json.loads(fd.readline().decode())
+        header = json.loads(fd.readline())
         buffer = io.BytesIO(fd.read())
 
-    cfg = config.SparseAutoencoder(**kwargs)
+    if "schema" not in header:
+        # Original, pre-schema stuff.
+        for keyword in ("sparsity_coeff", "ghost_grads"):
+            header.pop(keyword)
+        cfg = config.Relu(**header)
+    elif header["schema"] == 1:
+        cls = getattr(config, header["cls"])  # default for v0
+        cfg = cls(**header["cfg"])
+    else:
+        raise ValueError(f"Unknown schema version: {header['schema']}")
+
     model = SparseAutoencoder(cfg)
-    state_dict = torch.load(buffer, weights_only=True, map_location=device)
-    model.load_state_dict(state_dict)
+    model.load_state_dict(torch.load(buffer, weights_only=True, map_location=device))
     return model
+
+
+@beartype.beartype
+def current_git_commit() -> str | None:
+    """
+    Best-effort short SHA of the repo containing *this* file.
+
+    Returns `None` when
+    * `git` executable is missing,
+    * we’re not inside a git repo (e.g. installed wheel),
+    * or any git call errors out.
+    """
+    try:
+        # Walk up until we either hit a .git dir or the FS root
+        here = pathlib.Path(__file__).resolve()
+        for parent in (here, *here.parents):
+            if (parent / ".git").exists():
+                break
+        else:  # no .git found
+            return None
+
+        result = subprocess.run(
+            ["git", "-C", str(parent), "rev-parse", "--short", "HEAD"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip() or None
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
 
 >>>> nn/objectives.py
 import dataclasses
@@ -4039,8 +4114,12 @@ class MatryoshkaLoss(Loss):
 
 
 @jaxtyped(typechecker=beartype.beartype)
-class MatryoshkaObjective(torch.nn.Module):
+class MatryoshkaObjective(Objective):
     """Torch module for calculating the matryoshka loss for an SAE."""
+
+    def __init__(self, cfg: config.Matryoshka):
+        super().__init__()
+        self.cfg = cfg
 
     def forward(self) -> "MatryoshkaLoss.Loss":
         raise NotImplementedError()
@@ -4085,6 +4164,7 @@ def mean_squared_err(
 
 >>>> nn/test_modeling.py
 import hypothesis.strategies as st
+import pytest
 import torch
 from hypothesis import given, settings
 
@@ -4111,6 +4191,60 @@ def test_sae_shapes(cfg, batch):
     x_hat, f = sae(x)
     assert x_hat.shape == (batch, cfg.d_vit)
     assert f.shape == (batch, cfg.d_sae)
+
+
+hf_ckpts = [
+    "osunlp/SAE_BioCLIP_24K_ViT-B-16_iNat21",
+    "osunlp/SAE_CLIP_24K_ViT-B-16_IN1K",
+    "osunlp/SAE_DINOv2_24K_ViT-B-14_IN1K",
+]
+
+
+@pytest.mark.parametrize("repo_id", hf_ckpts)
+@pytest.mark.slow
+def test_load_bioclip_checkpoint(repo_id, tmp_path):
+    pytest.importorskip("huggingface_hub")
+
+    import huggingface_hub
+
+    ckpt_path = huggingface_hub.hf_hub_download(
+        repo_id=repo_id, filename="sae.pt", cache_dir=tmp_path
+    )
+
+    model = modeling.load(ckpt_path)
+
+    # Smoke-test shapes & numerics
+    x = torch.randn(2, model.cfg.d_vit)
+    x_hat, f_x = model(x)
+    assert x_hat.shape == x.shape
+    assert f_x.shape[1] == model.cfg.d_sae
+    # reconstruction shouldn’t be exactly identical, but should have finite values
+    assert torch.isfinite(x_hat).all()
+
+
+roundtrip_cases = [
+    config.Relu(d_vit=512, exp_factor=8, seed=0),
+    config.Relu(d_vit=768, exp_factor=16, seed=1),
+    config.Relu(d_vit=1024, exp_factor=32, seed=2),
+]
+
+
+@pytest.mark.parametrize("sae_cfg", roundtrip_cases)
+def test_dump_load_roundtrip(tmp_path, sae_cfg):
+    """Write → load → verify state-dict & cfg equality."""
+    sae = modeling.SparseAutoencoder(sae_cfg)
+    _ = sae(torch.randn(2, sae_cfg.d_vit))  # touch all params once
+
+    ckpt = tmp_path / "sae.pt"
+    modeling.dump(str(ckpt), sae)
+    sae_loaded = modeling.load(str(ckpt))
+
+    # configs identical
+    assert sae_cfg == sae_loaded.cfg
+
+    # tensors identical
+    for k, v in sae.state_dict().items():
+        torch.testing.assert_close(v, sae_loaded.state_dict()[k])
 
 >>>> nn/test_objectives.py
 """
@@ -4406,16 +4540,19 @@ def test_dataloader_batches():
 def test_shard_writer_and_dataset_e2e():
     with tempfile.TemporaryDirectory() as tmpdir:
         cfg = config.Activations(
-            vit_family="timm",
-            vit_ckpt="hf_hub:timm/test_vit3.r160_in1k",
-            d_vit=96,
-            n_patches_per_img=100,
+            vit_family="dinov2",
+            vit_ckpt="dinov2_vits14_reg",
+            d_vit=384,
+            n_patches_per_img=256,
             vit_layers=[-2, -1],
             vit_batch_size=8,
             n_workers=8,
             dump_to=tmpdir,
         )
         vit = activations.make_vit(cfg.vit_family, cfg.vit_ckpt)
+        vit = activations.RecordedVisionTransformer(
+            vit, cfg.n_patches_per_img, cfg.cls_token, cfg.vit_layers
+        )
         dataloader = activations.get_dataloader(
             cfg,
             img_transform=activations.make_img_transform(cfg.vit_family, cfg.vit_ckpt),
@@ -4432,14 +4569,16 @@ def test_shard_writer_and_dataset_e2e():
         )
 
         i = 0
-        for b, batch in zip(range(100), dataloader):
+        for b, batch in zip(range(10), dataloader):
             # Don't care about the forward pass.
-            _, cache = vit(batch["image"])
+            out, cache = vit(batch["image"])
+            del out
+
             writer[i : i + len(cache)] = cache
             i += len(cache)
-            assert cache.shape == (cfg.vit_batch_size, len(cfg.layers), 101, 96)
+            assert cache.shape == (cfg.vit_batch_size, len(cfg.vit_layers), 257, 384)
 
-            acts, _, _ = zip(*[dataset[i.item()] for i in batch["index"]])
+            acts = [dataset[i.item()]["act"] for i in batch["index"]]
             from_dataset = torch.stack(acts)
             torch.testing.assert_close(cache[:, -1, 0], from_dataset)
             print(f"Batch {b} matched.")
@@ -4646,6 +4785,31 @@ def test_one_training_step(monkeypatch):
     from . import training
 
     ids = training.main([cfg])  # should not raise
+    assert len(ids) == 1
+
+
+def test_one_training_step_matryoshka(monkeypatch):
+    """A minimal end-to-end training-loop smoke test for the Matryoshka objective."""
+
+    # configuration that uses Matryoshka
+    cfg = config.Train(
+        track=False,
+        sae_batch_size=8,
+        n_patches=64,  # make the run fast.
+        data=config.DataLoad(),
+        objective=config.Matryoshka(),
+    )
+
+    # stub out expensive I/O
+    from . import activations
+
+    monkeypatch.setattr(activations, "Dataset", lambda *_: DummyDS(32, cfg.sae.d_vit))
+    monkeypatch.setattr(activations, "get_dataloader", lambda *_1, **_2: None)
+
+    # run one training job
+    from saev import training
+
+    ids = training.main([cfg])
     assert len(ids) == 1
 
 >>>> test_visuals.py

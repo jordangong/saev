@@ -37,7 +37,6 @@ hf_ckpts = [
 
 @pytest.mark.parametrize("repo_id", hf_ckpts)
 @pytest.mark.slow
-@pytest.mark.integration
 def test_load_bioclip_checkpoint(repo_id, tmp_path):
     pytest.importorskip("huggingface_hub")
 
@@ -56,3 +55,28 @@ def test_load_bioclip_checkpoint(repo_id, tmp_path):
     assert f_x.shape[1] == model.cfg.d_sae
     # reconstruction shouldn’t be exactly identical, but should have finite values
     assert torch.isfinite(x_hat).all()
+
+
+roundtrip_cases = [
+    config.Relu(d_vit=512, exp_factor=8, seed=0),
+    config.Relu(d_vit=768, exp_factor=16, seed=1),
+    config.Relu(d_vit=1024, exp_factor=32, seed=2),
+]
+
+
+@pytest.mark.parametrize("sae_cfg", roundtrip_cases)
+def test_dump_load_roundtrip(tmp_path, sae_cfg):
+    """Write → load → verify state-dict & cfg equality."""
+    sae = modeling.SparseAutoencoder(sae_cfg)
+    _ = sae(torch.randn(2, sae_cfg.d_vit))  # touch all params once
+
+    ckpt = tmp_path / "sae.pt"
+    modeling.dump(str(ckpt), sae)
+    sae_loaded = modeling.load(str(ckpt))
+
+    # configs identical
+    assert sae_cfg == sae_loaded.cfg
+
+    # tensors identical
+    for k, v in sae.state_dict().items():
+        torch.testing.assert_close(v, sae_loaded.state_dict()[k])

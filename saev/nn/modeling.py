@@ -7,6 +7,8 @@ import io
 import json
 import logging
 import os
+import pathlib
+import subprocess
 import typing
 
 import beartype
@@ -15,7 +17,7 @@ import torch
 from jaxtyping import Float, jaxtyped
 from torch import Tensor
 
-from .. import config
+from .. import __version__, config
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -141,26 +143,72 @@ def dump(fpath: str, sae: SparseAutoencoder):
         fpath: filepath to save checkpoint to.
         sae: sparse autoencoder checkpoint to save.
     """
-    kwargs = dataclasses.asdict(sae.cfg)
+    header = {
+        "schema": 1,
+        "cfg": dataclasses.asdict(sae.cfg),
+        "cls": sae.cfg.__class__.__name__,
+        "commit": current_git_commit() or "unknown",
+        "lib": __version__,
+    }
 
     os.makedirs(os.path.dirname(fpath), exist_ok=True)
     with open(fpath, "wb") as fd:
-        kwargs_str = json.dumps(kwargs)
-        fd.write((kwargs_str + "\n").encode("utf-8"))
+        header_str = json.dumps(header)
+        fd.write((header_str + "\n").encode("utf-8"))
         torch.save(sae.state_dict(), fd)
 
 
 @beartype.beartype
-def load(fpath: str, *, device: str = "cpu") -> SparseAutoencoder:
+def load(fpath: str, *, device="cpu") -> SparseAutoencoder:
     """
     Loads a sparse autoencoder from disk.
     """
     with open(fpath, "rb") as fd:
-        kwargs = json.loads(fd.readline().decode())
+        header = json.loads(fd.readline())
         buffer = io.BytesIO(fd.read())
 
-    cfg = config.SparseAutoencoder(**kwargs)
+    if "schema" not in header:
+        # Original, pre-schema stuff.
+        for keyword in ("sparsity_coeff", "ghost_grads"):
+            header.pop(keyword)
+        cfg = config.Relu(**header)
+    elif header["schema"] == 1:
+        cls = getattr(config, header["cls"])  # default for v0
+        cfg = cls(**header["cfg"])
+    else:
+        raise ValueError(f"Unknown schema version: {header['schema']}")
+
     model = SparseAutoencoder(cfg)
-    state_dict = torch.load(buffer, weights_only=True, map_location=device)
-    model.load_state_dict(state_dict)
+    model.load_state_dict(torch.load(buffer, weights_only=True, map_location=device))
     return model
+
+
+@beartype.beartype
+def current_git_commit() -> str | None:
+    """
+    Best-effort short SHA of the repo containing *this* file.
+
+    Returns `None` when
+    * `git` executable is missing,
+    * we’re not inside a git repo (e.g. installed wheel),
+    * or any git call errors out.
+    """
+    try:
+        # Walk up until we either hit a .git dir or the FS root
+        here = pathlib.Path(__file__).resolve()
+        for parent in (here, *here.parents):
+            if (parent / ".git").exists():
+                break
+        else:  # no .git found
+            return None
+
+        result = subprocess.run(
+            ["git", "-C", str(parent), "rev-parse", "--short", "HEAD"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip() or None
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
