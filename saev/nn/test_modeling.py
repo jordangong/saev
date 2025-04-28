@@ -1,4 +1,5 @@
 import hypothesis.strategies as st
+import pytest
 import torch
 from hypothesis import given, settings
 
@@ -25,3 +26,33 @@ def test_sae_shapes(cfg, batch):
     x_hat, f = sae(x)
     assert x_hat.shape == (batch, cfg.d_vit)
     assert f.shape == (batch, cfg.d_sae)
+
+
+hf_ckpts = [
+    "osunlp/SAE_BioCLIP_24K_ViT-B-16_iNat21",
+    "osunlp/SAE_CLIP_24K_ViT-B-16_IN1K",
+    "osunlp/SAE_DINOv2_24K_ViT-B-14_IN1K",
+]
+
+
+@pytest.mark.parametrize("repo_id", hf_ckpts)
+@pytest.mark.slow
+@pytest.mark.integration
+def test_load_bioclip_checkpoint(repo_id, tmp_path):
+    pytest.importorskip("huggingface_hub")
+
+    import huggingface_hub
+
+    ckpt_path = huggingface_hub.hf_hub_download(
+        repo_id=repo_id, filename="sae.pt", cache_dir=tmp_path
+    )
+
+    model = modeling.load(ckpt_path)
+
+    # Smoke-test shapes & numerics
+    x = torch.randn(2, model.cfg.d_vit)
+    x_hat, f_x = model(x)
+    assert x_hat.shape == x.shape
+    assert f_x.shape[1] == model.cfg.d_sae
+    # reconstruction shouldn’t be exactly identical, but should have finite values
+    assert torch.isfinite(x_hat).all()
