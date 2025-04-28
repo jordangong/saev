@@ -177,6 +177,7 @@ def train(
             num_gpus = torch.cuda.device_count()
         else:
             num_gpus = 1
+        logger.info("Using %d GPUs.", num_gpus)
     else:
         num_gpus = 0
 
