@@ -545,6 +545,44 @@ class Dataset(torch.utils.data.Dataset):
                     image_i=i // self.metadata.n_patches_per_img,
                     patch_i=i % self.metadata.n_patches_per_img,
                 )
+            case ("all", int()):
+                n_imgs_per_shard = (
+                    self.metadata.n_patches_per_shard
+                    // len(self.metadata.layers)
+                    // (self.metadata.n_patches_per_img + 1)
+                )
+                n_examples_per_shard = n_imgs_per_shard * (
+                    self.metadata.n_patches_per_img + 1
+                )
+
+                shard = i // n_examples_per_shard
+                pos = i % n_examples_per_shard
+
+                acts_fpath = os.path.join(self.cfg.shard_root, f"acts{shard:06}.bin")
+                shape = (
+                    n_imgs_per_shard,
+                    len(self.metadata.layers),
+                    self.metadata.n_patches_per_img + 1,
+                    self.metadata.d_vit,
+                )
+                acts = np.memmap(acts_fpath, mode="c", dtype=np.float32, shape=shape)
+                # Choose the layer
+                acts = acts[:, self.layer_index, :]
+
+                # Choose an image and token (including CLS)
+                img_idx = pos // (self.metadata.n_patches_per_img + 1)
+                token_idx = pos % (self.metadata.n_patches_per_img + 1)
+                act = acts[img_idx, token_idx]
+
+                # For token_idx=0, this is the CLS token, otherwise it's a patch
+                is_cls = token_idx == 0
+                patch_i = -1 if is_cls else token_idx - 1
+
+                return self.Example(
+                    act=self.transform(act),
+                    image_i=i // (self.metadata.n_patches_per_img + 1),
+                    patch_i=patch_i,
+                )
             case _:
                 print((self.cfg.patches, self.cfg.layer))
                 typing.assert_never((self.cfg.patches, self.cfg.layer))
@@ -609,6 +647,9 @@ class Dataset(torch.utils.data.Dataset):
                     * len(self.metadata.layers)
                     * self.metadata.n_patches_per_img
                 )
+            case ("all", int()):
+                # Return all tokens (CLS + patches) from a random image and fixed layer.
+                return self.metadata.n_imgs * (self.metadata.n_patches_per_img + 1)
             case _:
                 typing.assert_never((self.cfg.patches, self.cfg.layer))
 
