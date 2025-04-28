@@ -54,6 +54,7 @@ def train(
     else:
         cfgs = [cfg]
 
+    cfg = cfgs[0]  # cfg merged with sweep params
     cfgs = training.split_cfgs(cfgs)
 
     logger.info("Running %d training jobs.", len(cfgs))
