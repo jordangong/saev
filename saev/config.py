@@ -203,8 +203,8 @@ class DataLoad:
     """Maximum value for activations; activations will be clamped to within [-clamp, clamp]`."""
     n_samples: int = 2**19
     """Number of samples used to calculate approximate dataset means at startup."""
-    random_perm: bool = True
-    """Whether to use a random permutation of the dataset."""
+    shuffled: bool = False
+    """Whether the dataset is already shuffled."""
     scale_mean: bool | str = True
     """Whether to subtract approximate dataset means from examples. If a string, manually load from the filepath."""
     scale_norm: bool | str = True

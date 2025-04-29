@@ -415,6 +415,10 @@ class Dataset(torch.utils.data.Dataset):
             assert self.cfg.layer in self.metadata.layers, err_msg
             self.layer_index = self.metadata.layers.index(self.cfg.layer)
 
+        if self.cfg.shuffled:
+            # Reverse the permutation used in pre-shuffled datasets, assume seed=42.
+            self.perm = self.reverse_permutation()
+
         # Premptively set these values so that preprocess() doesn't freak out.
         self.scalar = 1.0
         self.act_mean = torch.zeros(self.d_vit)
@@ -422,10 +426,10 @@ class Dataset(torch.utils.data.Dataset):
         # If either of these are true, we must do this work.
         if self.cfg.scale_mean is True or self.cfg.scale_norm is True:
             # Load a random subset of samples to calculate the mean activation and mean L2 norm.
-            if self.cfg.random_perm:
-                perm = np.random.default_rng(seed=42).permutation(len(self))
-            else:
+            if self.cfg.shuffled:
                 perm = np.arange(len(self))
+            else:
+                perm = np.random.default_rng(seed=42).permutation(len(self))
             perm = perm[: self.cfg.n_samples]
 
             samples = [
@@ -483,6 +487,42 @@ class Dataset(torch.utils.data.Dataset):
 
     @jaxtyped(typechecker=beartype.beartype)
     def __getitem__(self, i: int) -> Example:
+        if self.cfg.shuffled and hasattr(self, "perm"):
+            global_ids, perm_image_ids, perm_patch_ids = self.perm
+            i, image_i, patch_i = global_ids[i], perm_image_ids[i], perm_patch_ids[i]
+
+            n_imgs_per_shard = (
+                self.metadata.n_patches_per_shard
+                // len(self.metadata.layers)
+                // (self.metadata.n_patches_per_img + 1)
+            )
+            n_examples_per_shard = n_imgs_per_shard * (
+                self.metadata.n_patches_per_img + 1
+            )
+
+            shard = i // n_examples_per_shard
+            pos = i % n_examples_per_shard
+
+            acts_fpath = os.path.join(self.cfg.shard_root, f"acts{shard:06}.bin")
+            shape = (
+                n_imgs_per_shard,
+                len(self.metadata.layers),
+                self.metadata.n_patches_per_img + 1,
+                self.metadata.d_vit,
+            )
+            acts = np.memmap(acts_fpath, mode="c", dtype=np.float32, shape=shape)
+            # Choose the layer
+            acts = acts[:, self.layer_index, :]
+
+            # Choose an image and token (including CLS)
+            img_idx = pos // (self.metadata.n_patches_per_img + 1)
+            token_idx = pos % (self.metadata.n_patches_per_img + 1)
+            act = acts[img_idx, token_idx]
+
+            return self.Example(
+                act=self.transform(act), image_i=image_i, patch_i=patch_i
+            )
+
         match (self.cfg.patches, self.cfg.layer):
             case ("cls", int()):
                 img_act = self.get_img_patches(i)
@@ -653,6 +693,42 @@ class Dataset(torch.utils.data.Dataset):
             case _:
                 typing.assert_never((self.cfg.patches, self.cfg.layer))
 
+    def reverse_permutation(self):
+        # All activations (CLS + patches) are shuffled, so we need to reverse the permutation.
+        num_acts = self.metadata.n_imgs * (self.metadata.n_patches_per_img + 1)
+        global_ids = np.arange(num_acts)
+        perm = np.random.default_rng(seed=42).permutation(num_acts)
+
+        match (self.cfg.patches, self.cfg.layer):
+            case ("cls", int()):
+                cls_mask = np.zeros(num_acts, dtype=bool)
+                cls_mask[0:num_acts + 1:self.metadata.n_patches_per_img + 1] = True
+                perm_cls_mask = cls_mask[perm]
+                global_ids = global_ids[perm_cls_mask]
+
+                cls_perm = perm[perm_cls_mask]
+                perm_image_ids = cls_perm // (self.metadata.n_patches_per_img + 1)
+                perm_patch_ids = np.full(len(cls_perm), -1)
+
+                return global_ids, perm_image_ids, perm_patch_ids
+            case ("patches", int()):
+                patch_mask = np.ones(num_acts, dtype=bool)
+                patch_mask[0:num_acts + 1:self.metadata.n_patches_per_img + 1] = False
+                perm_patch_mask = patch_mask[perm]
+                global_ids = global_ids[perm_patch_mask]
+
+                patch_perm = perm[perm_patch_mask]
+                perm_image_ids = patch_perm // (self.metadata.n_patches_per_img + 1)
+                perm_patch_ids = patch_perm % (self.metadata.n_patches_per_img + 1) - 1
+
+                return global_ids, perm_image_ids, perm_patch_ids
+            case ("all", int()):
+                perm_image_ids = perm // (self.metadata.n_patches_per_img + 1)
+                perm_patch_ids = perm % (self.metadata.n_patches_per_img + 1) - 1
+
+                return global_ids, perm_image_ids, perm_patch_ids
+            case _:
+                typing.assert_never((self.cfg.patches, self.cfg.layer))
 
 ##########
 # IMAGES #
