@@ -1,11 +1,15 @@
 import glob
 import os
+import shutil
 import sys
 
 import numpy as np
+import torch
 import tqdm
 
 from saev import activations, config
+
+torch.multiprocessing.set_sharing_strategy("file_system")
 
 source_shard_root = sys.argv[1]
 target_shard_root = sys.argv[2]
@@ -20,52 +24,28 @@ for source_shard_root in source_shards_roots:
     target_shard_root = os.path.join(*target_shard_root_split)
     target_shards_roots.append(target_shard_root)
 
-def get_writable_patch(self, i: int) -> activations.Dataset.Example:
-    n_imgs_per_shard = (
-        self.metadata.n_patches_per_shard
-        // len(self.metadata.layers)
-        // (self.metadata.n_patches_per_img + 1)
-    )
-    n_examples_per_shard = n_imgs_per_shard * (self.metadata.n_patches_per_img + 1)
 
-    shard = i // n_examples_per_shard
-    pos = i % n_examples_per_shard
+class PermuteSampler(torch.utils.data.Sampler[int]):
+    def __init__(self, dataset: activations.Dataset, seed: int = 42):
+        self.perm = np.random.default_rng(seed=seed).permutation(len(dataset)).tolist()
 
-    acts_fpath = os.path.join(self.cfg.shard_root, f"acts{shard:06}.bin")
-    shape = (
-        n_imgs_per_shard,
-        len(self.metadata.layers),
-        self.metadata.n_patches_per_img + 1,
-        self.metadata.d_vit,
-    )
-    acts = np.memmap(acts_fpath, mode="w+", dtype=np.float32, shape=shape)
-    # Choose the layer
-    acts = acts[:, self.layer_index, :]
+    def __len__(self):
+        return len(self.perm)
 
-    # Choose an image and token (including CLS)
-    img_idx = pos // (self.metadata.n_patches_per_img + 1)
-    token_idx = pos % (self.metadata.n_patches_per_img + 1)
-    act = acts[img_idx, token_idx]
-
-    # For token_idx=0, this is the CLS token, otherwise it's a patch
-    is_cls = token_idx == 0
-    patch_i = -1 if is_cls else token_idx - 1
-
-    return self.Example(
-        act=self.transform(act),
-        image_i=i // (self.metadata.n_patches_per_img + 1),
-        patch_i=patch_i,
-    )
+    def __iter__(self):
+        return iter(self.perm)
 
 
 activations.Dataset.transform = lambda self, x: x
-activations.Dataset.get_writable_patch = get_writable_patch
 
 for source_shard_root, target_shard_root in zip(
     source_shards_roots, target_shards_roots
 ):
     if not os.path.exists(target_shard_root):
         os.makedirs(target_shard_root)
+        shutil.copy2(
+            os.path.join(source_shard_root, "metadata.json"), target_shard_root
+        )
 
     source_dataset_config = config.DataLoad(
         shard_root=source_shard_root,
@@ -73,18 +53,42 @@ for source_shard_root, target_shard_root in zip(
         scale_mean=False,
         scale_norm=False,
     )
-    target_dataset_config = config.DataLoad(
-        shard_root=target_shard_root,
-        patches="all",
-        scale_mean=False,
-        scale_norm=False,
-    )
     source_dataset = activations.Dataset(source_dataset_config)
-    target_dataset = activations.Dataset(target_dataset_config)
+    permute_sampler = PermuteSampler(source_dataset)
+    n_imgs_per_shard = (
+        source_dataset.metadata.n_patches_per_shard
+        // len(source_dataset.metadata.layers)
+        // (source_dataset.metadata.n_patches_per_img + 1)
+    )
+    n_examples_per_shard = n_imgs_per_shard * (
+        source_dataset.metadata.n_patches_per_img + 1
+    )
+    shard_shape = (
+        n_imgs_per_shard,
+        len(source_dataset.metadata.layers),
+        source_dataset.metadata.n_patches_per_img + 1,
+        source_dataset.metadata.d_vit,
+    )
+    source_dataloader = torch.utils.data.DataLoader(
+        source_dataset,
+        batch_size=(source_dataset.metadata.n_patches_per_img + 1),
+        sampler=permute_sampler,
+        num_workers=8,
+    )
 
-    perm = np.random.default_rng(seed=42).permutation(len(source_dataset))
-    for i, j in tqdm.tqdm(enumerate(perm), total=len(perm)):
-        act_i = source_dataset[i]["act"]
-        act_j = target_dataset.get_writable_patch(j)["act"]
-        act_j[:] = act_i[:]
-        act_j.flush()
+    shard_id = 0
+    num_batches = len(source_dataloader)
+    for i, batch in enumerate(tqdm.tqdm(source_dataloader)):
+        if i % n_imgs_per_shard == 0:
+            acts_fpath = os.path.join(target_shard_root, f"acts{shard_id:06}.bin")
+            acts = np.memmap(acts_fpath, mode="w+", dtype=np.float32, shape=shard_shape)
+            acts = acts[:, source_dataset.layer_index, :]
+
+        acts[i % n_imgs_per_shard] = batch["act"].numpy()[:]
+
+        if (i + 1) % 1000 == 0 or i == num_batches - 1:
+            acts.flush()
+
+        if (i + 1) % n_imgs_per_shard == 0:
+            acts.flush()
+            shard_id += 1
