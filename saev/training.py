@@ -198,6 +198,8 @@ def train(
         dataset,
         batch_size=cfg.sae_batch_size,
         num_workers=cfg.n_workers,
+        pin_memory=cfg.pin_memory,
+        prefetch_factor=cfg.prefetch_factor,
         shuffle=cfg.shuffle,
     )
 
@@ -356,7 +358,12 @@ def evaluate(
 
     dataset = activations.Dataset(cfg.data)
     dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=cfg.sae_batch_size, num_workers=cfg.n_workers, shuffle=False
+        dataset,
+        batch_size=cfg.sae_batch_size,
+        num_workers=cfg.n_workers,
+        pin_memory=cfg.pin_memory,
+        prefetch_factor=cfg.prefetch_factor,
+        shuffle=False,
     )
 
     n_fired = torch.zeros((len(cfgs), saes[0].cfg.d_sae))

@@ -278,6 +278,10 @@ class Train:
     """Whether to shuffle the dataset."""
     n_workers: int = 32
     """Number of dataloader workers."""
+    pin_memory: bool = False
+    """Whether to pin memory."""
+    prefetch_factor: int = 2
+    """Number of batches to prefetch."""
     n_patches: int = 100_000_000
     """Number of SAE training examples."""
     sae: SparseAutoencoder = dataclasses.field(default_factory=Relu)
