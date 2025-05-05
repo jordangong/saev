@@ -408,6 +408,9 @@ class Dataset(torch.utils.data.Dataset):
         metadata_fpath = os.path.join(self.cfg.shard_root, "metadata.json")
         self.metadata = Metadata.load(metadata_fpath)
 
+        # Class-level cache for memmap files
+        self._memmap_cache = {}
+
         # Pick a really big number so that if you accidentally use this when you shouldn't, you get an out of bounds IndexError.
         self.layer_index = 1_000_000
         if isinstance(self.cfg.layer, int):
@@ -510,7 +513,13 @@ class Dataset(torch.utils.data.Dataset):
                 self.metadata.n_patches_per_img + 1,
                 self.metadata.d_vit,
             )
-            acts = np.memmap(acts_fpath, mode="c", dtype=np.float32, shape=shape)
+
+            # Use cached memmap file if available, otherwise create and cache it
+            if acts_fpath not in self._memmap_cache:
+                acts = np.memmap(acts_fpath, mode="c", dtype=np.float32, shape=shape)
+                self._memmap_cache[acts_fpath] = acts
+
+            acts = self._memmap_cache[acts_fpath]
             # Choose the layer
             acts = acts[:, self.layer_index, :]
 
