@@ -579,7 +579,12 @@ class Dataset(torch.utils.data.Dataset):
                     self.metadata.n_patches_per_img + 1,
                     self.metadata.d_vit,
                 )
-                acts = np.memmap(acts_fpath, mode="c", dtype=np.float32, shape=shape)
+                # Use cached memmap file if available, otherwise create and cache it
+                if acts_fpath not in self._memmap_cache:
+                    acts = np.memmap(acts_fpath, mode="c", dtype=np.float32, shape=shape)
+                    self._memmap_cache[acts_fpath] = acts
+
+                acts = self._memmap_cache[acts_fpath]
                 # Choose the layer and the non-CLS tokens.
                 acts = acts[:, self.layer_index, 1:]
 
@@ -614,7 +619,12 @@ class Dataset(torch.utils.data.Dataset):
                     self.metadata.n_patches_per_img + 1,
                     self.metadata.d_vit,
                 )
-                acts = np.memmap(acts_fpath, mode="c", dtype=np.float32, shape=shape)
+                # Use cached memmap file if available, otherwise create and cache it
+                if acts_fpath not in self._memmap_cache:
+                    acts = np.memmap(acts_fpath, mode="c", dtype=np.float32, shape=shape)
+                    self._memmap_cache[acts_fpath] = acts
+
+                acts = self._memmap_cache[acts_fpath]
                 # Choose the layer
                 acts = acts[:, self.layer_index, :]
 
@@ -656,7 +666,13 @@ class Dataset(torch.utils.data.Dataset):
             self.metadata.n_patches_per_img + 1,
             self.metadata.d_vit,
         )
-        acts = np.memmap(acts_fpath, mode="c", dtype=np.float32, shape=shape)
+        # Use cached memmap file if available, otherwise create and cache it
+        if acts_fpath not in self._memmap_cache:
+            acts = np.memmap(acts_fpath, mode="c", dtype=np.float32, shape=shape)
+            self._memmap_cache[acts_fpath] = acts
+
+        acts = self._memmap_cache[acts_fpath]
+
         # Note that this is not yet copied!
         return acts[pos]
 
