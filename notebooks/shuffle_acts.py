@@ -13,6 +13,7 @@ torch.multiprocessing.set_sharing_strategy("file_system")
 
 source_shard_root = sys.argv[1]
 target_shard_root = sys.argv[2]
+layer = -2 if len(sys.argv) == 3 else int(sys.argv[3])
 
 source_shards_roots = sorted(glob.glob(os.path.join(source_shard_root, "*/*")))
 target_shards_roots = []
