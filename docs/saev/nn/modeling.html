@@ -36,6 +36,16 @@ hljs.highlightAll();
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="saev.nn.modeling.current_git_commit"><code class="name flex">
+<span>def <span class="ident">current_git_commit</span></span>(<span>) ‑> str | None</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Best-effort short SHA of the repo containing <em>this</em> file.</p>
+<p>Returns <code>None</code> when
+* <code>git</code> executable is missing,
+* we’re not inside a git repo (e.g. installed wheel),
+* or any git call errors out.</p></div>
+</dd>
 <dt id="saev.nn.modeling.dump"><code class="name flex">
 <span>def <span class="ident">dump</span></span>(<span>fpath: str,<br>sae: <a title="saev.nn.modeling.SparseAutoencoder" href="#saev.nn.modeling.SparseAutoencoder">SparseAutoencoder</a>)</span>
 </code></dt>
@@ -52,7 +62,7 @@ sae: sparse autoencoder checkpoint to save.</p></div>
 <div class="desc"></div>
 </dd>
 <dt id="saev.nn.modeling.load"><code class="name flex">
-<span>def <span class="ident">load</span></span>(<span>fpath: str, *, device: str = 'cpu') ‑> <a title="saev.nn.modeling.SparseAutoencoder" href="#saev.nn.modeling.SparseAutoencoder">SparseAutoencoder</a></span>
+<span>def <span class="ident">load</span></span>(<span>fpath: str, *, device='cpu') ‑> <a title="saev.nn.modeling.SparseAutoencoder" href="#saev.nn.modeling.SparseAutoencoder">SparseAutoencoder</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Loads a sparse autoencoder from disk.</p></div>
@@ -232,6 +242,7 @@ class SparseAutoencoder(torch.nn.Module):
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="saev.nn.modeling.current_git_commit" href="#saev.nn.modeling.current_git_commit">current_git_commit</a></code></li>
 <li><code><a title="saev.nn.modeling.dump" href="#saev.nn.modeling.dump">dump</a></code></li>
 <li><code><a title="saev.nn.modeling.get_activation" href="#saev.nn.modeling.get_activation">get_activation</a></code></li>
 <li><code><a title="saev.nn.modeling.load" href="#saev.nn.modeling.load">load</a></code></li>
