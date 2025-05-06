@@ -30,13 +30,16 @@ def activations(cfg: typing.Annotated[config.Activations, tyro.conf.arg(name="")
 def train(
     cfg: typing.Annotated[config.Train, tyro.conf.arg(name="")],
     sweep: str | None = None,
+    load_checkpoint: str | None = None,
 ):
     """
     Train an SAE over activations, optionally running a parallel grid search over a set of hyperparameters.
+    If load_checkpoint is provided, training will be skipped and evaluation will be run on the loaded checkpoint.
 
     Args:
         cfg: Baseline config for training an SAE.
         sweep: Path to .toml file defining the sweep parameters.
+        load_checkpoint: Path to a checkpoint to load for evaluation only (skips training).
     """
     import submitit
 
@@ -72,7 +75,7 @@ def train(
     else:
         executor = submitit.DebugExecutor(folder=cfg.log_to)
 
-    jobs = [executor.submit(training.main, group) for group in cfgs]
+    jobs = [executor.submit(training.main, group, load_checkpoint) for group in cfgs]
     for job in jobs:
         job.result()
 

@@ -114,8 +114,30 @@ class ParallelWandbRun:
 
 
 @beartype.beartype
-def main(cfgs: list[config.Train]) -> list[str]:
-    saes, objectives, run, steps = train(cfgs)
+def main(cfgs: list[config.Train], load_checkpoint: str = None) -> list[str]:
+    if load_checkpoint:
+        # Skip training and load checkpoint for evaluation only
+        logger.info(
+            "Skipping training and loading checkpoint from '%s'", load_checkpoint
+        )
+        cfg = cfgs[0]
+
+        # Load the checkpoint
+        saes = nn.load(load_checkpoint)
+        objectives = nn.get_objective(cfg.objective)
+
+        # Wrap with ModuleLists
+        saes = torch.nn.ModuleList([saes])
+        objectives = torch.nn.ModuleList([objectives])
+
+        # Initialize wandb run for logging evaluation results
+        mode = "online" if cfg.track else "disabled"
+        tags = [cfg.tag] if cfg.tag else []
+        run = ParallelWandbRun(cfg.wandb_project, cfgs, mode, tags)
+        steps = 0
+    else:
+        # Normal training flow
+        saes, objectives, run, steps = train(cfgs)
     # Cheap(-ish) evaluation
     eval_metrics = evaluate(cfgs, saes, objectives)
     metrics = [metric.for_wandb() for metric in eval_metrics]
@@ -142,12 +164,13 @@ def main(cfgs: list[config.Train]) -> list[str]:
             metric.n_almost_dead / sae.cfg.d_sae * 100,
         )
 
-        ckpt_fpath = os.path.join(cfg.ckpt_path, id, "sae.pt")
-        nn.dump(ckpt_fpath, sae)
-        logger.info("Dumped checkpoint to '%s'.", ckpt_fpath)
-        cfg_fpath = os.path.join(cfg.ckpt_path, id, "config.json")
-        with open(cfg_fpath, "w") as fd:
-            json.dump(dataclasses.asdict(cfg), fd, indent=4)
+        if not load_checkpoint:
+            ckpt_fpath = os.path.join(cfg.ckpt_path, id, "sae.pt")
+            nn.dump(ckpt_fpath, sae)
+            logger.info("Dumped checkpoint to '%s'.", ckpt_fpath)
+            cfg_fpath = os.path.join(cfg.ckpt_path, id, "config.json")
+            with open(cfg_fpath, "w") as fd:
+                json.dump(dataclasses.asdict(cfg), fd, indent=4)
 
     return ids
 

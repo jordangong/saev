@@ -159,7 +159,12 @@ def load(fpath: str, *, device: str = "cpu") -> SparseAutoencoder:
         kwargs = json.loads(fd.readline().decode())
         buffer = io.BytesIO(fd.read())
 
-    cfg = config.SparseAutoencoder(**kwargs)
+    # Create the appropriate config object based on the kwargs
+    if 'exp_factor' in kwargs:  # This is a ReLU config
+        cfg = config.Relu(**kwargs)
+    else:  # JumpReLU is not implemented
+        raise ValueError(f"Unknown SparseAutoencoder type from kwargs: {kwargs}")
+
     model = SparseAutoencoder(cfg)
     state_dict = torch.load(buffer, weights_only=True, map_location=device)
     model.load_state_dict(state_dict)
