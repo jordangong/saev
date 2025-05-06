@@ -114,7 +114,7 @@ class ParallelWandbRun:
 
 
 @beartype.beartype
-def main(cfgs: list[config.Train], load_checkpoint: str = None) -> list[str]:
+def main(cfgs: list[config.Train], load_checkpoint: str | None = None) -> list[str]:
     if load_checkpoint:
         # Skip training and load checkpoint for evaluation only
         logger.info(
