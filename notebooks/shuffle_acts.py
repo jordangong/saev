@@ -9,8 +9,6 @@ import tqdm
 
 from saev import activations, config
 
-torch.multiprocessing.set_sharing_strategy("file_system")
-
 source_shard_root = sys.argv[1]
 target_shard_root = sys.argv[2]
 layer = -2 if len(sys.argv) == 3 else int(sys.argv[3])
@@ -18,9 +16,9 @@ layer = -2 if len(sys.argv) == 3 else int(sys.argv[3])
 source_shards_roots = sorted(glob.glob(os.path.join(source_shard_root, "*/*")))
 target_shards_roots = []
 for source_shard_root in source_shards_roots:
-    source_shard_root_split = os.path.split(source_shard_root)
-    target_shard_root_split = list(source_shard_root_split)
-    target_shard_root_split[:-2] = [target_shard_root]
+    source_shard_root_head, source_shard_root_tail = os.path.split(source_shard_root)
+    target_shard_root_split = [*os.path.split(source_shard_root_head), source_shard_root_tail]
+    target_shard_root_split[0] = target_shard_root
     target_shard_root_split[-2] += "_rand"
     target_shard_root = os.path.join(*target_shard_root_split)
     target_shards_roots.append(target_shard_root)
@@ -51,6 +49,7 @@ for source_shard_root, target_shard_root in zip(
     source_dataset_config = config.DataLoad(
         shard_root=source_shard_root,
         patches="all",
+        layer=layer,
         scale_mean=False,
         scale_norm=False,
     )
