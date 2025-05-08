@@ -9,19 +9,19 @@ import tqdm
 
 from saev import activations, config
 
-source_shard_root = sys.argv[1]
-target_shard_root = sys.argv[2]
+source_shard_dir = sys.argv[1]
+target_shard_dir = sys.argv[2]
 layer = -2 if len(sys.argv) == 3 else int(sys.argv[3])
 
-source_shards_roots = sorted(glob.glob(os.path.join(source_shard_root, "*/*")))
-target_shards_roots = []
-for source_shard_root in source_shards_roots:
-    source_shard_root_head, source_shard_root_tail = os.path.split(source_shard_root)
-    target_shard_root_split = [*os.path.split(source_shard_root_head), source_shard_root_tail]
-    target_shard_root_split[0] = target_shard_root
-    target_shard_root_split[-2] += "_rand"
-    target_shard_root = os.path.join(*target_shard_root_split)
-    target_shards_roots.append(target_shard_root)
+source_shard_dirs = sorted(glob.glob(os.path.join(source_shard_dir, "*/*")))
+target_shard_dirs = []
+for source_shard_dir in source_shard_dirs:
+    source_shard_dir_head, source_shard_dir_tail = os.path.split(source_shard_dir)
+    target_shard_dir_split = [*os.path.split(source_shard_dir_head), source_shard_dir_tail]
+    target_shard_dir_split[0] = target_shard_dir
+    target_shard_dir_split[-2] += "_rand"
+    target_shard_dir = os.path.join(*target_shard_dir_split)
+    target_shard_dirs.append(target_shard_dir)
 
 
 class PermuteSampler(torch.utils.data.Sampler[int]):
@@ -37,17 +37,17 @@ class PermuteSampler(torch.utils.data.Sampler[int]):
 
 activations.Dataset.transform = lambda self, x: x
 
-for source_shard_root, target_shard_root in zip(
-    source_shards_roots, target_shards_roots
+for source_shard_dir, target_shard_dir in zip(
+    source_shard_dirs, target_shard_dirs
 ):
-    if not os.path.exists(target_shard_root):
-        os.makedirs(target_shard_root)
+    if not os.path.exists(target_shard_dir):
+        os.makedirs(target_shard_dir)
         shutil.copy2(
-            os.path.join(source_shard_root, "metadata.json"), target_shard_root
+            os.path.join(source_shard_dir, "metadata.json"), target_shard_dir
         )
 
     source_dataset_config = config.DataLoad(
-        shard_root=source_shard_root,
+        shard_root=source_shard_dir,
         patches="all",
         layer=layer,
         scale_mean=False,
@@ -80,7 +80,7 @@ for source_shard_root, target_shard_root in zip(
     num_batches = len(source_dataloader)
     for i, batch in enumerate(tqdm.tqdm(source_dataloader)):
         if i % n_imgs_per_shard == 0:
-            acts_fpath = os.path.join(target_shard_root, f"acts{shard_id:06}.bin")
+            acts_fpath = os.path.join(target_shard_dir, f"acts{shard_id:06}.bin")
             acts = np.memmap(acts_fpath, mode="w+", dtype=np.float32, shape=shard_shape)
             acts = acts[:, source_dataset.layer_index, :]
 
