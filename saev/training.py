@@ -212,10 +212,6 @@ def train(
     run = ParallelWandbRun(cfg.wandb_project, cfgs, mode, tags)
 
     optimizer = torch.optim.Adam(param_groups, fused=True)
-    lr_schedulers = [Warmup(0.0, c.lr, c.n_lr_warmup) for c in cfgs]
-    sparsity_schedulers = [
-        Warmup(0.0, c.objective.sparsity_coeff, c.n_sparsity_warmup) for c in cfgs
-    ]
 
     dataloader = torch.utils.data.DataLoader(
         dataset,
@@ -227,6 +223,24 @@ def train(
     )
 
     dataloader = BatchLimiter(dataloader, cfg.n_patches)
+
+    # Create learning rate schedulers based on config
+    lr_schedulers = []
+    for c in cfgs:
+        if c.lr_scheduler == "warmup":
+            lr_schedulers.append(Warmup(0.0, c.lr, c.n_lr_warmup))
+        elif c.lr_scheduler == "cosine_warmup":
+            lr_schedulers.append(CosineWarmup(
+                init=0.0,
+                final=c.lr,
+                n_warmup_steps=c.n_lr_warmup,
+                n_total_steps=len(dataloader),
+                final_factor=c.lr_final_factor
+            ))
+
+    sparsity_schedulers = [
+        Warmup(0.0, c.objective.sparsity_coeff, c.n_sparsity_warmup) for c in cfgs
+    ]
 
     cfg_device_ids = [0] * len(cfgs)
     if num_gpus > 1:
@@ -568,19 +582,69 @@ class Warmup(Scheduler):
         return f"Warmup(init={self.init}, final={self.final}, n_steps={self.n_steps})"
 
 
+@beartype.beartype
+class CosineWarmup(Scheduler):
+    """
+    Implements cosine annealing with warmup.
+    First linearly increases from `init` to `final` over `n_warmup_steps` steps,
+    then follows a cosine decay from `final` to `final_factor * final` over the remaining steps.
+    """
+
+    def __init__(self, init: float, final: float, n_warmup_steps: int, n_total_steps: int, final_factor: float = 0.0):
+        self.init = init
+        self.final = final
+        self.n_warmup_steps = n_warmup_steps
+        self.n_total_steps = n_total_steps
+        self.final_factor = final_factor
+        self._step = 0
+
+    def step(self) -> float:
+        self._step += 1
+        
+        # Warmup phase
+        if self._step < self.n_warmup_steps:
+            return self.init + (self.final - self.init) * (self._step / self.n_warmup_steps)
+        
+        # Cosine decay phase
+        progress = (self._step - self.n_warmup_steps) / (self.n_total_steps - self.n_warmup_steps)
+        progress = min(1.0, progress)  # Ensure progress doesn't exceed 1.0
+        cosine_decay = 0.5 * (1 + np.cos(np.pi * progress))
+        return self.final_factor * self.final + (self.final - self.final_factor * self.final) * cosine_decay
+
+    def __repr__(self) -> str:
+        return f"CosineWarmup(init={self.init}, final={self.final}, n_warmup_steps={self.n_warmup_steps}, n_total_steps={self.n_total_steps}, final_factor={self.final_factor})"
+
+
 def _plot_example_schedules():
     import matplotlib.pyplot as plt
     import numpy as np
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(10, 6))
 
     n_steps = 1000
     xs = np.arange(n_steps)
 
-    schedule = Warmup(0.1, 0.9, 100)
-    ys = [schedule.step() for _ in xs]
-
-    ax.plot(xs, ys, label=str(schedule))
+    # Regular warmup scheduler
+    warmup_schedule = Warmup(0.1, 0.9, 100)
+    warmup_ys = []
+    for _ in xs:
+        warmup_ys.append(warmup_schedule.step())
+    
+    # Cosine warmup scheduler
+    cosine_schedule = CosineWarmup(0.1, 0.9, 100, n_steps, 0.1)
+    cosine_ys = []
+    for _ in xs:
+        cosine_ys.append(cosine_schedule.step())
+    
+    # Plot both schedulers
+    ax.plot(xs, warmup_ys, label=str(warmup_schedule))
+    ax.plot(xs, cosine_ys, label=str(cosine_schedule))
+    
+    ax.set_xlabel('Steps')
+    ax.set_ylabel('Learning Rate')
+    ax.set_title('Learning Rate Schedulers Comparison')
+    ax.legend()
+    ax.grid(True, linestyle='--', alpha=0.7)
 
     fig.tight_layout()
     fig.savefig("schedules.png")

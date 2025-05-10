@@ -294,6 +294,10 @@ class Train:
     """Learning rate."""
     n_lr_warmup: int = 500
     """Number of learning rate warmup steps."""
+    lr_scheduler: typing.Literal["warmup", "cosine_warmup"] = "warmup"
+    """Learning rate scheduler type."""
+    lr_final_factor: float = 0.0
+    """Final learning rate factor for cosine scheduler (final_lr = lr * lr_final_factor)."""
     gradient_clip_value: float = 0.0
     """Maximum norm of gradients. If 0.0, no gradient clipping is applied."""
     sae_batch_size: int = 1024 * 16
