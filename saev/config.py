@@ -294,6 +294,8 @@ class Train:
     """Learning rate."""
     n_lr_warmup: int = 500
     """Number of learning rate warmup steps."""
+    gradient_clip_value: float = 0.0
+    """Maximum norm of gradients. If 0.0, no gradient clipping is applied."""
     sae_batch_size: int = 1024 * 16
     """Batch size for SAE training."""
 

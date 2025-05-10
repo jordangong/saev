@@ -282,6 +282,16 @@ def train(
         for loss in losses:
             loss.loss.backward()
 
+        # Apply gradient clipping if configured
+        if cfg.gradient_clip_value > 0.0:
+            # Clip gradients by global norm
+            torch.nn.utils.clip_grad_norm_(
+                parameters=[
+                    p for group in optimizer.param_groups for p in group["params"]
+                ],
+                max_norm=cfg.gradient_clip_value,
+            )
+
         for sae in saes:
             sae.remove_parallel_grads()
 
