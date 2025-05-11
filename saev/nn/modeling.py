@@ -20,6 +20,43 @@ from torch import Tensor
 from .. import __version__, config
 
 
+@torch.no_grad()
+def geometric_median(
+    points: torch.Tensor, max_iterations: int = 100, tolerance: float = 1e-6
+) -> torch.Tensor:
+    """
+    Calculate the geometric median of a set of points using Weiszfeld's algorithm.
+
+    The geometric median is a robust estimator of centrality that minimizes the sum
+    of Euclidean distances to all points in the set.
+
+    Args:
+        points: A tensor of shape (n, d) containing n points in d-dimensional space.
+        max_iterations: Maximum number of iterations for the algorithm. Default is 100.
+        tolerance: Convergence threshold for early stopping. Default is 1e-6.
+
+    Returns:
+        A tensor of shape (d,) representing the geometric median.
+    """
+    # Use mean as initial estimate
+    center = points.mean(axis=0)
+
+    for _ in range(max_iterations):
+        distances = torch.norm(points - center, dim=1, keepdim=True)
+        # Avoid division by zero
+        distances = torch.clamp(distances, min=1e-8)
+        weights = 1.0 / distances
+        new_center = torch.sum(weights * points, dim=0) / torch.sum(weights)
+
+        center_shift = torch.norm(new_center - center) / torch.norm(center)
+        center = new_center
+
+        if center_shift < tolerance:
+            break
+
+    return center
+
+
 @jaxtyped(typechecker=beartype.beartype)
 class SparseAutoencoder(torch.nn.Module):
     """
@@ -84,15 +121,23 @@ class SparseAutoencoder(torch.nn.Module):
         previous_b_dec = self.b_dec.clone().cpu()
         vit_acts = vit_acts[: self.cfg.n_reinit_samples]
         assert len(vit_acts) == self.cfg.n_reinit_samples
-        mean = vit_acts.mean(axis=0)
+
+        if self.cfg.use_geometric_median:
+            self.logger.info("Using geometric median for b_dec initialization")
+            result = geometric_median(vit_acts)
+        else:
+            # Use arithmetic mean
+            self.logger.info("Using arithmetic mean for b_dec initialization")
+            result = vit_acts.mean(axis=0)
+
         previous_distances = torch.norm(vit_acts - previous_b_dec, dim=-1)
-        distances = torch.norm(vit_acts - mean, dim=-1)
+        distances = torch.norm(vit_acts - result, dim=-1)
         self.logger.info(
             "Prev dist: %.3f; new dist: %.3f",
             previous_distances.median(axis=0).values.mean().item(),
             distances.median(axis=0).values.mean().item(),
         )
-        self.b_dec.data = mean.to(self.b_dec.dtype).to(self.b_dec.device)
+        self.b_dec.data = result.to(self.b_dec.dtype).to(self.b_dec.device)
 
     @torch.no_grad()
     def normalize_w_dec(self):

@@ -218,7 +218,9 @@ class Relu:
     exp_factor: int = 16
     """Expansion factor for SAE."""
     n_reinit_samples: int = 1024 * 16 * 32
-    """Number of samples to use for SAE re-init. Anthropic proposes initializing b_dec to the geometric median of the dataset here: https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder-bias. We use the regular mean."""
+    """Number of samples to use for SAE re-init. Anthropic proposes initializing b_dec to the geometric median of the dataset here: https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder-bias."""
+    use_geometric_median: bool = False
+    """Whether to use geometric median instead of mean for initializing b_dec. Geometric median is more robust to outliers but computationally more expensive."""
     remove_parallel_grads: bool = True
     """Whether to remove gradients parallel to W_dec columns (which will be ignored because we force the columns to have unit norm). See https://transformer-circuits.pub/2023/monosemantic-features/index.html#appendix-autoencoder-optimization for the original discussion from Anthropic."""
     normalize_w_dec: bool = True

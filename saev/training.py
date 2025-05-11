@@ -29,17 +29,18 @@ def init_b_dec_batched(saes: torch.nn.ModuleList, dataset: activations.Dataset):
     if not n_samples:
         return
     # Pick random samples using first SAE's seed.
-    perm = np.random.default_rng(seed=saes[0].cfg.seed).permutation(len(dataset))
+    if dataset.cfg.shuffled:
+        perm = np.arange(len(dataset))
+    else:
+        perm = np.random.default_rng(seed=saes[0].cfg.seed).permutation(len(dataset))
     perm = perm[:n_samples]
-    examples, _, _ = zip(
-        *[
-            dataset[p.item()]
-            for p in helpers.progress(
-                perm, every=25_000, desc="examples to re-init b_dec"
-            )
-        ]
-    )
-    vit_acts = torch.stack(examples)
+    samples = [
+        dataset[p.item()]
+        for p in helpers.progress(
+            perm, every=25_000, desc="examples to re-init b_dec"
+        )
+    ]
+    vit_acts = torch.stack([sample["act"] for sample in samples])
     for sae in saes:
         sae.init_b_dec(vit_acts[: sae.cfg.n_reinit_samples])
 
@@ -206,6 +207,7 @@ def train(
 
     dataset = activations.Dataset(cfg.data)
     saes, objectives, param_groups = make_saes([(c.sae, c.objective) for c in cfgs])
+    init_b_dec_batched(saes, dataset)
 
     mode = "online" if cfg.track else "disabled"
     tags = [cfg.tag] if cfg.tag else []
