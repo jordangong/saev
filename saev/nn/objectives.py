@@ -132,7 +132,7 @@ def ref_mean_squared_err(
 
 @jaxtyped(typechecker=beartype.beartype)
 def mean_squared_err(
-    x_hat: Float[Tensor, "*batch d"], x: Float[Tensor, "*batch d"], norm: bool = False
+    x_hat: Float[Tensor, "*batch d"], x: Float[Tensor, "*batch d"], norm: bool = True
 ) -> Float[Tensor, "*batch d"]:
     upper = x.abs().max()
     x = x / upper
