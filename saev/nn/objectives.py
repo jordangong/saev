@@ -49,7 +49,7 @@ class VanillaLoss(Loss):
     """L0 magnitude of hidden activations."""
     l1: Float[Tensor, ""]
     """L1 magnitude of hidden activations."""
-    dead_neuron_mask: Bool[Tensor, " d_sae"]
+    dead_neuron_mask: Bool[Tensor, " d_sae"] | None
     """Mask indicating neurons are dead or not"""
 
     @property
@@ -88,15 +88,20 @@ class VanillaObjective(Objective):
         mse_loss = mean_squared_err(x_hat, x)
 
         ghost_loss = torch.tensor(0.0, dtype=mse_loss.dtype, device=mse_loss.device)
-        dead_neuron_mask = torch.zeros_like(n_fwd_passes_since_fired, dtype=torch.bool)
-        # gate on config and training so evals is not slowed down.
+        dead_neuron_mask = None
+        if (
+            self.cfg.ghost_grads
+            and self.training
+            and n_fwd_passes_since_fired is not None
+        ):
+            dead_neuron_mask = (n_fwd_passes_since_fired > self.cfg.dead_feature_window)
         if (
             self.cfg.ghost_grads
             and self.training
             and h_pre is not None
             and W_dec is not None
-            and n_fwd_passes_since_fired is not None
-            and (dead_neuron_mask := (n_fwd_passes_since_fired > self.cfg.dead_feature_window)).sum() > 0
+            and dead_neuron_mask is not None
+            and dead_neuron_mask.sum() > 0
         ):
             # ghost protocol
 
