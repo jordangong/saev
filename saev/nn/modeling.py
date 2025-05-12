@@ -84,7 +84,12 @@ class SparseAutoencoder(torch.nn.Module):
 
     def forward(
         self, x: Float[Tensor, "batch d_model"]
-    ) -> tuple[Float[Tensor, "batch d_model"], Float[Tensor, "batch d_sae"]]:
+    ) -> tuple[
+        Float[Tensor, "batch d_model"],
+        Float[Tensor, "batch d_sae"],
+        Float[Tensor, "batch d_sae"],
+        torch.nn.Parameter,
+    ]:
         """
         Given x, calculates the reconstructed x_hat and the intermediate activations f_x.
 
@@ -102,7 +107,7 @@ class SparseAutoencoder(torch.nn.Module):
         f_x = self.activation(h_pre)
         x_hat = self.decode(f_x)
 
-        return x_hat, f_x
+        return x_hat, f_x, h_pre, self.W_dec
 
     def decode(
         self, f_x: Float[Tensor, "batch d_sae"]
@@ -204,9 +209,15 @@ def dump(fpath: str, sae: SparseAutoencoder):
 
 
 @beartype.beartype
-def load(fpath: str, *, device="cpu") -> SparseAutoencoder:
+def load(fpath: str, *, device: str = "cpu") -> SparseAutoencoder:
     """
     Loads a sparse autoencoder from disk.
+
+    `fpath` should be a path to a file saved with :func:`dump`.
+
+    `device` is the device to load the model onto. Defaults to `"cpu"`.
+
+    Returns an instance of :class:`SparseAutoencoder` with the loaded weights.
     """
     with open(fpath, "rb") as fd:
         header = json.loads(fd.readline())

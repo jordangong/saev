@@ -209,6 +209,11 @@ def train(
     saes, objectives, param_groups = make_saes([(c.sae, c.objective) for c in cfgs])
     init_b_dec_batched(saes, dataset)
 
+    # track active features
+    act_freq_scores = torch.zeros(len(cfgs), saes[0].cfg.d_sae)
+    n_fwd_passes_since_fired = torch.zeros(len(cfgs), saes[0].cfg.d_sae)
+    n_frac_active_tokens = 0
+
     mode = "online" if cfg.track else "disabled"
     tags = [cfg.tag] if cfg.tag else []
     run = ParallelWandbRun(cfg.wandb_project, cfgs, mode, tags)
@@ -265,25 +270,52 @@ def train(
             acts_BD = [batch["act"].to(cfg.device, non_blocking=True)]
         for sae in saes:
             sae.normalize_w_dec()
-        # Forward passes and loss calculations.
-        losses = []
-        for i, (sae, objective) in enumerate(zip(saes, objectives)):
-            x_hat, f_x = sae(acts_BD[cfg_device_ids[i]])
-            losses.append(objective(acts_BD[cfg_device_ids[i]], f_x, x_hat))
 
         n_patches_seen += len(acts_BD[0])
+        n_frac_active_tokens += len(acts_BD[0])
+
+        # Forward passes and loss calculations.
+        losses = []
+        for i in range(len(cfgs)):
+            x_hat, f_x, h_pre, W_dec = saes[i](acts_BD[cfg_device_ids[i]])
+            loss = objectives[i](
+                acts_BD[cfg_device_ids[i]],
+                f_x,
+                x_hat,
+                h_pre,
+                W_dec,
+                n_fwd_passes_since_fired[i].to(h_pre.device),
+            )
+            losses.append(loss)
+
+            act_freq_fired = (f_x.detach().cpu() > 0).float().sum(0)
+            did_fire = act_freq_fired > 0
+            n_fwd_passes_since_fired[i] += 1
+            n_fwd_passes_since_fired[i][did_fire] = 0
+
+            # Calculate the sparsities, and add it to a list, calculate sparsity metrics
+            act_freq_scores[i] += act_freq_fired
 
         with torch.no_grad():
             if (global_step + 1) % cfg.log_every == 0:
+                feature_sparsity = act_freq_scores / n_frac_active_tokens
+
                 metrics = [
                     {
                         **loss.metrics(),
                         "progress/n_patches_seen": n_patches_seen,
                         "progress/learning_rate": group["lr"],
                         "progress/sparsity_coeff": objective.sparsity_coeff,
+                        "sparsity/mean_passes_since_fired": mean_psf.item(),
+                        "sparsity/n_passes_since_fired_over_threshold": loss.dead_neuron_mask.sum().item(),
+                        "sparsity/below_1e-5": fs_1e_5.item(),
+                        "sparsity/below_1e-7": fs_1e_7.item(),
                     }
-                    for loss, sae, objective, group in zip(
-                        losses, saes, objectives, optimizer.param_groups
+                    for loss, objective, group, mean_psf, fs_1e_5, fs_1e_7 in zip(
+                        losses, objectives, optimizer.param_groups,
+                        n_fwd_passes_since_fired.mean(1),
+                        (feature_sparsity < 1e-5).float().mean(1),
+                        (feature_sparsity < 1e-7).float().mean(1),
                     )
                 ]
                 run.log(metrics, step=global_step)
@@ -427,7 +459,7 @@ def evaluate(
         else:
             acts_BD = [batch["act"].to(cfg.device, non_blocking=True)]
         for i, (sae, objective) in enumerate(zip(saes, objectives)):
-            x_hat_BD, f_x_BS = sae(acts_BD[cfg_device_ids[i]])
+            x_hat_BD, f_x_BS, *_ = sae(acts_BD[cfg_device_ids[i]])
             loss = objective(acts_BD[cfg_device_ids[i]], f_x_BS, x_hat_BD)
             n_fired[i] += einops.reduce(f_x_BS > 0, "batch d_sae -> d_sae", "sum").cpu()
             values[i] += einops.reduce(f_x_BS, "batch d_sae -> d_sae", "sum").cpu()

@@ -249,7 +249,10 @@ SparseAutoencoder = Relu | JumpRelu
 class Vanilla:
     sparsity_coeff: float = 4e-4
     """How much to weight sparsity loss term."""
-
+    ghost_grads: bool = True
+    """Whether to use ghost gradient."""
+    dead_feature_window: int = 64
+    """Number of waiting iterations since fired before running ghost gradient."""
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True, slots=True)

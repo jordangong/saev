@@ -3,7 +3,7 @@ import typing
 
 import beartype
 import torch
-from jaxtyping import Float, jaxtyped
+from jaxtyping import Bool, Float, jaxtyped
 from torch import Tensor
 
 from .. import config
@@ -43,15 +43,19 @@ class VanillaLoss(Loss):
     """Reconstruction loss (mean squared error)."""
     sparsity: Float[Tensor, ""]
     """Sparsity loss, typically lambda * L1."""
+    ghost_grad: Float[Tensor, ""]
+    """Ghost gradient loss, if any."""
     l0: Float[Tensor, ""]
     """L0 magnitude of hidden activations."""
     l1: Float[Tensor, ""]
     """L1 magnitude of hidden activations."""
+    dead_neuron_mask: Bool[Tensor, " d_sae"]
+    """Mask indicating neurons are dead or not"""
 
     @property
     def loss(self) -> Float[Tensor, ""]:
         """Total loss."""
-        return self.mse + self.sparsity
+        return self.mse + self.sparsity + self.ghost_grad
 
     def metrics(self) -> dict[str, object]:
         return {
@@ -60,6 +64,7 @@ class VanillaLoss(Loss):
             "l0": self.l0.item(),
             "l1": self.l1.item(),
             "sparsity": self.sparsity.item(),
+            "ghost_grad": self.ghost_grad.item(),
         }
 
 
@@ -74,17 +79,58 @@ class VanillaObjective(Objective):
         x: Float[Tensor, "batch d_model"],
         f_x: Float[Tensor, "batch d_sae"],
         x_hat: Float[Tensor, "batch d_model"],
+        h_pre: Float[Tensor, "batch d_sae"] | None = None,
+        W_dec: torch.nn.Parameter | None = None,
+        n_fwd_passes_since_fired: Float[Tensor, " d_sae"] | None = None,
     ) -> VanillaLoss:
         # Some values of x and x_hat can be very large. We can calculate a safe MSE
         # print(x_hat.shape, x.shape)
         mse_loss = mean_squared_err(x_hat, x)
 
+        ghost_loss = torch.tensor(0.0, dtype=mse_loss.dtype, device=mse_loss.device)
+        dead_neuron_mask = torch.zeros_like(n_fwd_passes_since_fired, dtype=torch.bool)
+        # gate on config and training so evals is not slowed down.
+        if (
+            self.cfg.ghost_grads
+            and self.training
+            and h_pre is not None
+            and W_dec is not None
+            and n_fwd_passes_since_fired is not None
+            and (dead_neuron_mask := (n_fwd_passes_since_fired > self.cfg.dead_feature_window)).sum() > 0
+        ):
+            # ghost protocol
+
+            # 1.
+            residual = x - x_hat
+            l2_norm_residual = torch.norm(residual, dim=-1)
+
+            # 2.
+            feature_acts_dead_neurons_only = torch.exp(h_pre[:, dead_neuron_mask])
+            ghost_out = feature_acts_dead_neurons_only @ W_dec[dead_neuron_mask, :]
+            l2_norm_ghost_out = torch.norm(ghost_out, dim=-1)
+            norm_scaling_factor = l2_norm_residual / (1e-6 + l2_norm_ghost_out * 2)
+            ghost_out *= norm_scaling_factor[:, None].detach()
+
+            # 3.
+            ghost_loss = mean_squared_err(ghost_out, residual.detach())
+            mse_rescaling_factor = (mse_loss / (ghost_loss + 1e-6)).detach()
+            ghost_loss *= mse_rescaling_factor
+
+        ghost_loss = ghost_loss.mean()
+ 
         mse_loss = mse_loss.mean()
         l0 = (f_x > 0).float().sum(axis=1).mean(axis=0)
         l1 = f_x.sum(axis=1).mean(axis=0)
         sparsity_loss = self.cfg.sparsity_coeff * l1
 
-        return VanillaLoss(mse_loss, sparsity_loss, l0, l1)
+        return VanillaLoss(
+            mse_loss,
+            sparsity_loss,
+            ghost_loss,
+            l0,
+            l1,
+            dead_neuron_mask
+        )
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -121,7 +167,7 @@ def get_objective(cfg: config.Objective) -> Objective:
 
 @jaxtyped(typechecker=beartype.beartype)
 def ref_mean_squared_err(
-    x_hat: Float[Tensor, "*d"], x: Float[Tensor, "*d"], norm: bool = False
+    x_hat: Float[Tensor, "*d"], x: Float[Tensor, "*d"], norm: bool = True
 ) -> Float[Tensor, "*d"]:
     mse_loss = torch.pow((x_hat - x.float()), 2)
 
