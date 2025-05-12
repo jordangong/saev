@@ -43,7 +43,7 @@ class VanillaLoss(Loss):
     """Reconstruction loss (mean squared error)."""
     sparsity: Float[Tensor, ""]
     """Sparsity loss, typically lambda * L1."""
-    ghost_grad: Float[Tensor, ""]
+    ghost_grad: Float[Tensor, ""] | None
     """Ghost gradient loss, if any."""
     l0: Float[Tensor, ""]
     """L0 magnitude of hidden activations."""
@@ -55,17 +55,24 @@ class VanillaLoss(Loss):
     @property
     def loss(self) -> Float[Tensor, ""]:
         """Total loss."""
-        return self.mse + self.sparsity + self.ghost_grad
+        if self.ghost_grad is None:
+            return self.mse + self.sparsity
+        else:
+            return self.mse + self.sparsity + self.ghost_grad
 
     def metrics(self) -> dict[str, object]:
-        return {
+        metrics =  {
             "loss": self.loss.item(),
             "mse": self.mse.item(),
             "l0": self.l0.item(),
             "l1": self.l1.item(),
             "sparsity": self.sparsity.item(),
-            "ghost_grad": self.ghost_grad.item(),
         }
+
+        if self.ghost_grad is not None:
+            metrics["ghost_grad"] = self.ghost_grad.item()
+
+        return metrics
 
 
 @jaxtyped(typechecker=beartype.beartype)
@@ -87,7 +94,7 @@ class VanillaObjective(Objective):
         # print(x_hat.shape, x.shape)
         mse_loss = mean_squared_err(x_hat, x)
 
-        ghost_loss = torch.tensor(0.0, dtype=mse_loss.dtype, device=mse_loss.device)
+        ghost_loss = None
         dead_neuron_mask = None
         if (
             self.cfg.ghost_grads
@@ -120,8 +127,7 @@ class VanillaObjective(Objective):
             ghost_loss = mean_squared_err(ghost_out, residual.detach())
             mse_rescaling_factor = (mse_loss / (ghost_loss + 1e-6)).detach()
             ghost_loss *= mse_rescaling_factor
-
-        ghost_loss = ghost_loss.mean()
+            ghost_loss = ghost_loss.mean()
  
         mse_loss = mse_loss.mean()
         l0 = (f_x > 0).float().sum(axis=1).mean(axis=0)
