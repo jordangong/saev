@@ -440,7 +440,15 @@ def evaluate(
     almost_dead_lim = 1e-7
     dense_lim = 1e-2
 
-    dataset = activations.Dataset(cfg.data)
+    # Create a copy of the data config for evaluation if eval_shard_root is specified
+    if cfg.data.eval_shard_root is not None:
+        logger.info(f"Using dedicated evaluation set from {cfg.data.eval_shard_root}")
+        eval_data_cfg = dataclasses.replace(cfg.data, shard_root=cfg.data.eval_shard_root)
+        dataset = activations.Dataset(eval_data_cfg)
+    else:
+        logger.info("Using training set for evaluation")
+        dataset = activations.Dataset(cfg.data)
+
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=cfg.sae_batch_size,
