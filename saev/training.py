@@ -443,7 +443,11 @@ def evaluate(
     # Create a copy of the data config for evaluation if eval_shard_root is specified
     if cfg.data.eval_shard_root is not None:
         logger.info(f"Using dedicated evaluation set from {cfg.data.eval_shard_root}")
-        eval_data_cfg = dataclasses.replace(cfg.data, shard_root=cfg.data.eval_shard_root)
+        eval_data_cfg = dataclasses.replace(
+            cfg.data,
+            shard_root=cfg.data.eval_shard_root,
+            shuffled=cfg.data.eval_shuffled,
+        )
         dataset = activations.Dataset(eval_data_cfg)
     else:
         logger.info("Using training set for evaluation")

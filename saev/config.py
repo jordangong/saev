@@ -207,6 +207,8 @@ class DataLoad:
     """Number of samples used to calculate approximate dataset means at startup."""
     shuffled: bool = False
     """Whether the dataset is already shuffled."""
+    eval_shuffled: bool = False
+    """Whether the eval dataset is already shuffled."""
     scale_mean: bool | str = True
     """Whether to subtract approximate dataset means from examples. If a string, manually load from the filepath."""
     scale_norm: bool | str = True
