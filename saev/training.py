@@ -6,6 +6,7 @@ import dataclasses
 import json
 import logging
 import os.path
+from typing import Any, Union
 
 import beartype
 import einops
@@ -229,6 +230,12 @@ def train(
 
     dataloader = BatchLimiter(dataloader, cfg.n_patches)
 
+    # Initialize evaluation dataloader if needed
+    eval_dataloader = None
+    if cfg.run_eval_during_training:
+        logger.info(f"Initializing evaluation dataloader with {cfg.eval_n_samples} samples...")
+        eval_dataloader = create_eval_dataloader(cfg, cfg.eval_n_samples)
+
     # Create learning rate schedulers based on config
     lr_schedulers = []
     for c in cfgs:
@@ -299,6 +306,30 @@ def train(
                 act_freq_scores[i] += act_freq_fired
 
         with torch.no_grad():
+            if (global_step + 1) % cfg.eval_every == 0 and eval_dataloader is not None:
+                logger.info(f"Running evaluation on {cfg.eval_n_samples} samples at step {global_step + 1}...")
+
+                eval_metrics = run_evaluation(
+                    cfgs,
+                    saes,
+                    objectives,
+                    eval_dataloader,
+                    num_gpus,
+                    cfg_device_ids,
+                    desc="quick-eval",
+                )
+                eval_metrics = [metric.for_wandb(prefix="quick-eval") for metric in eval_metrics]
+                run.log(eval_metrics, step=global_step)
+
+                logger.info(
+                    "Eval metrics: "
+                    + ", ".join(
+                        f"{key.removeprefix("quick-eval/")}: {value:.5f}"
+                        for key, value in eval_metrics[0].items()
+                        if isinstance(value, (int, float))
+                    )
+                )
+
             if (global_step + 1) % cfg.log_every == 0:
                 feature_sparsity = [afs / n_patches_seen for afs in act_freq_scores]
                 metrics = [
@@ -394,14 +425,149 @@ class EvalMetrics:
     dense_threshold: float
     """Threshold for a dense neuron."""
 
-    def for_wandb(self) -> dict[str, int | float]:
+    def for_wandb(self, prefix="eval") -> dict[str, int | float]:
         dct = dataclasses.asdict(self)
         # Store arrays as tables.
         dct["freqs"] = wandb.Table(columns=["freq"], data=dct["freqs"][:, None].numpy())
         dct["mean_values"] = wandb.Table(
             columns=["mean_value"], data=dct["mean_values"][:, None].numpy()
         )
-        return {f"eval/{key}": value for key, value in dct.items()}
+        return {f"{prefix}/{key}": value for key, value in dct.items()}
+
+
+@beartype.beartype
+def create_eval_dataloader(cfg: config.Train, limit_samples: int = None):
+    """
+    Creates a dataloader for evaluation.
+
+    Args:
+        cfg: The training configuration.
+        limit_samples: If provided, limits the number of samples in the dataloader.
+
+    Returns:
+        A dataloader for evaluation.
+    """
+    # Create a copy of the data config for evaluation if eval_shard_root is specified
+    if cfg.data.eval_shard_root is not None:
+        logger.info(f"Using dedicated evaluation set from {cfg.data.eval_shard_root}")
+        eval_data_cfg = dataclasses.replace(
+            cfg.data,
+            shard_root=cfg.data.eval_shard_root,
+            shuffled=cfg.data.eval_shuffled,
+        )
+        dataset = activations.Dataset(eval_data_cfg)
+    else:
+        logger.info("Using training set for evaluation")
+        dataset = activations.Dataset(cfg.data)
+
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=cfg.sae_batch_size,
+        num_workers=cfg.n_workers,
+        pin_memory=cfg.pin_memory,
+        prefetch_factor=cfg.prefetch_factor,
+        persistent_workers=True,
+        shuffle=False,
+    )
+
+    if limit_samples is not None:
+        dataloader = BatchLimiter(dataloader, limit_samples)
+
+    return dataloader
+
+
+@beartype.beartype
+def run_evaluation(
+    cfgs: list[config.Train],
+    saes: torch.nn.ModuleList,
+    objectives: torch.nn.ModuleList,
+    dataloader: Union[torch.utils.data.DataLoader, Any],
+    num_gpus: int,
+    cfg_device_ids: list[int],
+    desc: str = "eval",
+    log_every: int = None,
+) -> list[EvalMetrics]:
+    """
+    Runs evaluation on the given dataloader and returns evaluation metrics.
+
+    Args:
+        cfgs: List of training configurations.
+        saes: List of SAE models.
+        objectives: List of objective functions.
+        dataloader: Dataloader to use for evaluation.
+        dataset_size: Size of the dataset.
+        num_gpus: Number of GPUs to use.
+        cfg_device_ids: Device IDs for each config.
+        desc: Description for the progress bar.
+        log_every: How often to log progress.
+
+    Returns:
+        A list of evaluation metrics for each SAE.
+    """
+    cfg = cfgs[0]
+    log_every = log_every or cfg.log_every
+
+    n_fired = torch.zeros((len(cfgs), saes[0].cfg.d_sae))
+    values = torch.zeros((len(cfgs), saes[0].cfg.d_sae))
+    total_l0 = torch.zeros(len(cfgs))
+    total_l1 = torch.zeros(len(cfgs))
+    total_mse = torch.zeros(len(cfgs))
+    total_samples = 0
+
+    # Store the original model mode
+    saes_training = saes.training
+    objectives_training = objectives.training
+
+    # Set models to eval mode
+    saes.eval()
+    objectives.eval()
+
+    with torch.no_grad():
+        for batch in helpers.progress(dataloader, desc=desc, every=log_every):
+            if num_gpus > 1:
+                acts_BD = [batch["act"].to(f"{cfg.device}:{i}", non_blocking=True) for i in range(num_gpus)]
+            else:
+                acts_BD = [batch["act"].to(cfg.device, non_blocking=True)]
+            total_samples += len(acts_BD[0])
+            for i, (sae, objective) in enumerate(zip(saes, objectives)):
+                x_hat_BD, f_x_BS, *_ = sae(acts_BD[cfg_device_ids[i]])
+                loss = objective(acts_BD[cfg_device_ids[i]], f_x_BS, x_hat_BD)
+                n_fired[i] += einops.reduce(f_x_BS > 0, "batch d_sae -> d_sae", "sum").cpu()
+                values[i] += einops.reduce(f_x_BS, "batch d_sae -> d_sae", "sum").cpu()
+                total_l0[i] += loss.l0.cpu()
+                total_l1[i] += loss.l1.cpu()
+                total_mse[i] += loss.mse.cpu()
+
+    # Restore original model mode
+    if saes_training:
+        saes.train()
+    if objectives_training:
+        objectives.train()
+
+    # Calculate metrics
+    mean_values = values / n_fired.clamp(min=1.0)  # Avoid division by zero
+
+    # Use the actual counted samples for frequency calculation
+    freqs = n_fired / total_samples
+
+    l0 = (total_l0 / len(dataloader)).tolist()
+    l1 = (total_l1 / len(dataloader)).tolist()
+    mse = (total_mse / len(dataloader)).tolist()
+
+    almost_dead_lim = 1e-7
+    dense_lim = 1e-2
+
+    n_dead = einops.reduce(freqs == 0, "n_saes d_sae -> n_saes", "sum").tolist()
+    n_almost_dead = einops.reduce(
+        freqs < almost_dead_lim, "n_saes d_sae -> n_saes", "sum"
+    ).tolist()
+    n_dense = einops.reduce(freqs > dense_lim, "n_saes d_sae -> n_saes", "sum").tolist()
+
+    metrics = []
+    for row in zip(l0, l1, mse, n_dead, n_almost_dead, n_dense, freqs, mean_values):
+        metrics.append(EvalMetrics(*row, almost_dead_lim, dense_lim))
+
+    return metrics
 
 
 @beartype.beartype
@@ -438,69 +604,14 @@ def evaluate(
             saes[i] = saes[i].to(f"{cfg.device}:{cfg_device_ids[i]}")
     else:
         saes = saes.to(cfg.device)
-    saes.eval()
 
-    almost_dead_lim = 1e-7
-    dense_lim = 1e-2
+    # Create dataloader for evaluation
+    dataloader = create_eval_dataloader(cfg)
 
-    # Create a copy of the data config for evaluation if eval_shard_root is specified
-    if cfg.data.eval_shard_root is not None:
-        logger.info(f"Using dedicated evaluation set from {cfg.data.eval_shard_root}")
-        eval_data_cfg = dataclasses.replace(
-            cfg.data,
-            shard_root=cfg.data.eval_shard_root,
-            shuffled=cfg.data.eval_shuffled,
-        )
-        dataset = activations.Dataset(eval_data_cfg)
-    else:
-        logger.info("Using training set for evaluation")
-        dataset = activations.Dataset(cfg.data)
-
-    dataloader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=cfg.sae_batch_size,
-        num_workers=cfg.n_workers,
-        pin_memory=cfg.pin_memory,
-        prefetch_factor=cfg.prefetch_factor,
-        shuffle=False,
+    # Run evaluation and return metrics directly
+    metrics = run_evaluation(
+        cfgs, saes, objectives, dataloader, num_gpus, cfg_device_ids
     )
-
-    n_fired = torch.zeros((len(cfgs), saes[0].cfg.d_sae))
-    values = torch.zeros((len(cfgs), saes[0].cfg.d_sae))
-    total_l0 = torch.zeros(len(cfgs))
-    total_l1 = torch.zeros(len(cfgs))
-    total_mse = torch.zeros(len(cfgs))
-
-    for batch in helpers.progress(dataloader, desc="eval", every=cfg.log_every):
-        if num_gpus > 1:
-            acts_BD = [batch["act"].to(f"{cfg.device}:{i}", non_blocking=True) for i in range(num_gpus)]
-        else:
-            acts_BD = [batch["act"].to(cfg.device, non_blocking=True)]
-        for i, (sae, objective) in enumerate(zip(saes, objectives)):
-            x_hat_BD, f_x_BS, *_ = sae(acts_BD[cfg_device_ids[i]])
-            loss = objective(acts_BD[cfg_device_ids[i]], f_x_BS, x_hat_BD)
-            n_fired[i] += einops.reduce(f_x_BS > 0, "batch d_sae -> d_sae", "sum").cpu()
-            values[i] += einops.reduce(f_x_BS, "batch d_sae -> d_sae", "sum").cpu()
-            total_l0[i] += loss.l0.cpu()
-            total_l1[i] += loss.l1.cpu()
-            total_mse[i] += loss.mse.cpu()
-
-    mean_values = values / n_fired
-    freqs = n_fired / len(dataset)
-
-    l0 = (total_l0 / len(dataloader)).tolist()
-    l1 = (total_l1 / len(dataloader)).tolist()
-    mse = (total_mse / len(dataloader)).tolist()
-
-    n_dead = einops.reduce(freqs == 0, "n_saes d_sae -> n_saes", "sum").tolist()
-    n_almost_dead = einops.reduce(
-        freqs < almost_dead_lim, "n_saes d_sae -> n_saes", "sum"
-    ).tolist()
-    n_dense = einops.reduce(freqs > dense_lim, "n_saes d_sae -> n_saes", "sum").tolist()
-
-    metrics = []
-    for row in zip(l0, l1, mse, n_dead, n_almost_dead, n_dense, freqs, mean_values):
-        metrics.append(EvalMetrics(*row, almost_dead_lim, dense_lim))
 
     return metrics
 
@@ -550,6 +661,9 @@ CANNOT_PARALLELIZE = set(
         "tag",
         "log_every",
         "ckpt_path",
+        "run_eval_during_training",
+        "eval_every",
+        "eval_n_samples",
         "device",
         "span_all_devices",
         "slurm",

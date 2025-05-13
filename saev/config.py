@@ -324,6 +324,14 @@ class Train:
     ckpt_path: str = os.path.join(".", "checkpoints")
     """Where to save checkpoints."""
 
+    # Evaluation during training
+    run_eval_during_training: bool = False
+    """Whether to run evaluation on a fraction of the evaluation set during training."""
+    eval_every: int = 1000
+    """How often to run evaluation during training (in steps)."""
+    eval_n_samples: int = 100_000
+    """Number of samples to use for evaluation during training."""
+
     device: typing.Literal["cuda", "cpu"] = "cuda"
     """Hardware device."""
     span_all_devices: bool = False
