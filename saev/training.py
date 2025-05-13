@@ -306,30 +306,6 @@ def train(
                 act_freq_scores[i] += act_freq_fired
 
         with torch.no_grad():
-            if (global_step + 1) % cfg.eval_every == 0 and eval_dataloader is not None:
-                logger.info(f"Running evaluation on {cfg.eval_n_samples} samples at step {global_step + 1}...")
-
-                eval_metrics = run_evaluation(
-                    cfgs,
-                    saes,
-                    objectives,
-                    eval_dataloader,
-                    num_gpus,
-                    cfg_device_ids,
-                    desc="quick-eval",
-                )
-                eval_metrics = [metric.for_wandb(prefix="quick-eval") for metric in eval_metrics]
-                run.log(eval_metrics, step=global_step)
-
-                logger.info(
-                    "Eval metrics: "
-                    + ", ".join(
-                        f"{key.removeprefix("quick-eval/")}: {value:.5f}"
-                        for key, value in eval_metrics[0].items()
-                        if isinstance(value, (int, float))
-                    )
-                )
-
             if (global_step + 1) % cfg.log_every == 0:
                 feature_sparsity = [afs / n_patches_seen for afs in act_freq_scores]
                 metrics = [
@@ -391,6 +367,31 @@ def train(
 
         # Don't need these anymore.
         optimizer.zero_grad()
+
+        with torch.no_grad():
+            if (global_step + 1) % cfg.eval_every == 0 and eval_dataloader is not None:
+                logger.info(f"Running evaluation on {cfg.eval_n_samples} samples at step {global_step + 1}...")
+
+                eval_metrics = run_evaluation(
+                    cfgs,
+                    saes,
+                    objectives,
+                    eval_dataloader,
+                    num_gpus,
+                    cfg_device_ids,
+                    desc="quick-eval",
+                )
+                eval_metrics = [metric.for_wandb(prefix="quick-eval") for metric in eval_metrics]
+                run.log(eval_metrics, step=global_step)
+
+                logger.info(
+                    "Eval metrics: "
+                    + ", ".join(
+                        f"{key.removeprefix("quick-eval/")}: {value:.5f}"
+                        for key, value in eval_metrics[0].items()
+                        if isinstance(value, (int, float))
+                    )
+                )
 
         global_step += 1
 
