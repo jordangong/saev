@@ -205,6 +205,9 @@ def train(
     else:
         num_gpus = 0
 
+    # Assert that shard_root is not None when training
+    assert cfg.data.shard_root is not None, "shard_root must not be None when training"
+
     dataset = activations.Dataset(cfg.data)
     saes, objectives, param_groups = make_saes([(c.sae, c.objective) for c in cfgs])
     init_b_dec_batched(saes, dataset)

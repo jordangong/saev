@@ -193,7 +193,7 @@ class DataLoad:
     Configuration for loading activation data from disk.
     """
 
-    shard_root: str = os.path.join(".", "shards")
+    shard_root: str | None = os.path.join(".", "shards")
     """Directory with .bin shards and a metadata.json file."""
     eval_shard_root: str | None = None
     """Directory with .bin shards and a metadata.json file for evaluation data."""
