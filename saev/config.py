@@ -311,6 +311,8 @@ class Train:
     """Maximum norm of gradients. If 0.0, no gradient clipping is applied."""
     sae_batch_size: int = 1024 * 16
     """Batch size for SAE training."""
+    eval_batch_size: int = 0
+    """Batch size for SAE evaluation. If 0, uses sae_batch_size."""
 
     # Logging
     track: bool = True

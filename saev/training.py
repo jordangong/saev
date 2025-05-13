@@ -461,9 +461,11 @@ def create_eval_dataloader(cfg: config.Train, limit_samples: int = None):
         logger.info("Using training set for evaluation")
         dataset = activations.Dataset(cfg.data)
 
+    # Use eval_batch_size if set, otherwise fall back to sae_batch_size
+    batch_size = cfg.eval_batch_size if cfg.eval_batch_size > 0 else cfg.sae_batch_size
     dataloader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=cfg.sae_batch_size,
+        batch_size=batch_size,
         num_workers=cfg.n_workers,
         pin_memory=cfg.pin_memory,
         prefetch_factor=cfg.prefetch_factor,
