@@ -429,7 +429,7 @@ class Dataset(torch.utils.data.Dataset):
         # If either of these are true, we must do this work.
         if self.cfg.scale_mean is True or self.cfg.scale_norm is True:
             # Load a random subset of samples to calculate the mean activation and mean L2 norm.
-            if self.cfg.shuffled:
+            if self.cfg.shuffled or self.cfg.n_samples >= len(self):
                 perm = np.arange(len(self))
             else:
                 perm = np.random.default_rng(seed=42).permutation(len(self))
