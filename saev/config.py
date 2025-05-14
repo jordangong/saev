@@ -257,6 +257,8 @@ class Vanilla:
     """Whether to use ghost gradient."""
     dead_feature_window: int = 64
     """Number of waiting iterations since fired before running ghost gradient."""
+    normalize_mse: bool = True
+    """Whether to normalize mean squared error by the L2 norm of the input."""
 
 @beartype.beartype
 @dataclasses.dataclass(frozen=True, slots=True)

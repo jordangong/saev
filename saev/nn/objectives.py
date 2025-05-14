@@ -92,7 +92,7 @@ class VanillaObjective(Objective):
     ) -> VanillaLoss:
         # Some values of x and x_hat can be very large. We can calculate a safe MSE
         # print(x_hat.shape, x.shape)
-        mse_loss = mean_squared_err(x_hat, x)
+        mse_loss = mean_squared_err(x_hat, x, norm=self.cfg.normalize_mse)
 
         ghost_loss = None
         dead_neuron_mask = None
@@ -124,7 +124,9 @@ class VanillaObjective(Objective):
             ghost_out *= norm_scaling_factor[:, None].detach()
 
             # 3.
-            ghost_loss = mean_squared_err(ghost_out, residual.detach())
+            ghost_loss = mean_squared_err(
+                ghost_out, residual.detach(), norm=self.cfg.normalize_mse
+            )
             mse_rescaling_factor = (mse_loss / (ghost_loss + 1e-6)).detach()
             ghost_loss *= mse_rescaling_factor
             ghost_loss = ghost_loss.mean()
