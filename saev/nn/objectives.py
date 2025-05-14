@@ -183,7 +183,7 @@ def ref_mean_squared_err(
     mse_loss = torch.pow((x_hat - x.float()), 2)
 
     if norm:
-        mse_loss /= (x**2).sum(dim=-1, keepdim=True).sqrt()
+        mse_loss /= (x**2).sum(dim=-1, keepdim=True)
     return mse_loss
 
 
@@ -198,7 +198,7 @@ def mean_squared_err(
     mse = (x_hat - x) ** 2
     # (sam): I am now realizing that we normalize by the L2 norm of x.
     if norm:
-        mse /= torch.linalg.norm(x, axis=-1, keepdim=True) + 1e-12
+        mse /= (x**2).sum(dim=-1, keepdim=True) + 1e-12
         return mse * upper
 
     return mse * upper * upper
