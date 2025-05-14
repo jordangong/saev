@@ -199,6 +199,6 @@ def mean_squared_err(
     # (sam): I am now realizing that we normalize by the L2 norm of x.
     if norm:
         mse /= (x**2).sum(dim=-1, keepdim=True) + 1e-12
-        return mse
+        return mse * upper
 
     return mse * upper * upper
