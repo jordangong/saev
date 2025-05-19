@@ -343,7 +343,10 @@ def make_img_transform(vit_family: str, vit_ckpt: str) -> Callable:
         import timm
 
         # Get the default config for this model
-        data_config = timm.data.resolve_model_data_config(vit_ckpt)
+        pretrained_config = timm.models.get_pretrained_cfg(vit_ckpt)
+        if not isinstance(pretrained_config, dict):
+            pretrained_config = pretrained_config.to_dict()
+        data_config = timm.data.resolve_data_config(pretrained_cfg=pretrained_config)
 
         # If we can get the transform from timm, use that
         if data_config is not None:
