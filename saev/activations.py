@@ -48,7 +48,7 @@ class RecordedVisionTransformer(torch.nn.Module):
         vit: torch.nn.Module,
         n_patches_per_img: int,
         cls_token: bool,
-        layers: list[int],
+        layers: list[int | str],
     ):
         super().__init__()
 
@@ -65,8 +65,10 @@ class RecordedVisionTransformer(torch.nn.Module):
 
         self.logger = logging.getLogger(f"recorder({vit.name})")
 
-        for i in self.layers:
-            self.vit.get_residuals()[i].register_forward_hook(self.hook)
+        for layer in self.layers:
+            if isinstance(layer, int) and layer < 0:
+                layer += vit.num_blocks
+            self.vit.get_residuals()[layer].register_forward_hook(self.hook)
 
     def hook(
         self, module, args: tuple, output: Float[Tensor, "batch n_layers dim"]
@@ -141,9 +143,12 @@ class Clip(torch.nn.Module):
         assert not isinstance(self.model, open_clip.timm_model.TimmModel)
 
         self.name = f"clip/{vit_ckpt}"
+        self.num_blocks = len(self.model.transformer.resblocks)
 
-    def get_residuals(self) -> list[torch.nn.Module]:
-        return self.model.transformer.resblocks
+    def get_residuals(self) -> dict[int | str, torch.nn.Module]:
+        residuals = {i: block for i, block in enumerate(self.model.transformer.resblocks)}
+        residuals["ln_post"] = self.model.ln_post
+        return residuals
 
     def get_patches(self, cfg: config.Activations) -> slice:
         return slice(None, None, None)
@@ -177,10 +182,15 @@ class Siglip(torch.nn.Module):
         model.output_tokens = True  # type: ignore
         self.model = model
 
-        assert isinstance(self.model, open_clip.timm_model.TimmModel)
+        assert not isinstance(self.model, open_clip.timm_model.TimmModel)
 
-    def get_residuals(self) -> list[torch.nn.Module]:
-        return self.model.trunk.blocks
+        self.name = f"siglip/{vit_ckpt}"
+        self.num_blocks = len(self.model.trunk.blocks)
+
+    def get_residuals(self) -> dict[int | str, torch.nn.Module]:
+        residuals = {i: block for i, block in enumerate(self.model.trunk.blocks)}
+        residuals["norm"] = self.model.trunk.norm
+        return residuals
 
     def get_patches(self, cfg: config.Activations) -> slice:
         return slice(None, None, None)
@@ -199,9 +209,12 @@ class DinoV2(torch.nn.Module):
 
         self.model = torch.hub.load("facebookresearch/dinov2", vit_ckpt)
         self.name = f"dinov2/{vit_ckpt}"
+        self.num_blocks = len(self.model.blocks)
 
-    def get_residuals(self) -> list[torch.nn.Module]:
-        return self.model.blocks
+    def get_residuals(self) -> dict[int | str, torch.nn.Module]:
+        residuals = {i: block for i, block in enumerate(self.model.blocks)}
+        residuals["norm"] = self.model.norm
+        return residuals
 
     def get_patches(self, n_patches_per_img: int) -> slice:
         n_reg = self.model.num_register_tokens
@@ -244,9 +257,12 @@ class Vit(torch.nn.Module):
 
         # Store model name for logging
         self.name = f"vit/{vit_ckpt}"
+        self.num_blocks = len(self.model.blocks)
 
-    def get_residuals(self) -> list[torch.nn.Module]:
-        return self.model.blocks
+    def get_residuals(self) -> dict[int | str, torch.nn.Module]:
+        residuals = {i: block for i, block in enumerate(self.model.blocks)}
+        residuals["norm"] = self.model.norm
+        return residuals
 
     def get_patches(self, n_patches_per_img: int) -> slice:
         n_reg = self.model.num_reg_tokens
@@ -280,12 +296,14 @@ class Moondream2(torch.nn.Module):
             vit_id, revision=revision, trust_remote_code=True
         )
         self.model = mllm.vision_encoder.encoder.model.visual
+        self.name = f"moondream2/{vit_ckpt}"
+        self.num_blocks = len(self.model.blocks)
 
     def get_patches(self, cfg: config.Activations) -> slice:
         return slice(None, None, None)
 
-    def get_residuals(self) -> list[torch.nn.Module]:
-        return self.model.blocks
+    def get_residuals(self) -> dict[int | str, torch.nn.Module]:
+        return {i: block for i, block in enumerate(self.model.blocks)}
 
     def forward(
         self, batch: Float[Tensor, "batch 3 width height"]
@@ -1289,7 +1307,7 @@ class ShardWriter:
 class Metadata:
     vit_family: str
     vit_ckpt: str
-    layers: tuple[int, ...]
+    layers: tuple[int | str, ...]
     n_patches_per_img: int
     cls_token: bool
     d_vit: int

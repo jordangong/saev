@@ -161,7 +161,7 @@ class Activations:
     """Number of dataloader workers."""
     d_vit: int = 1024
     """Dimension of the ViT activations (depends on model)."""
-    vit_layers: list[int] = dataclasses.field(default_factory=lambda: [-2])
+    vit_layers: list[int | str] = dataclasses.field(default_factory=lambda: [-2])
     """Which layers to save. By default, the second-to-last layer."""
     n_patches_per_img: int = 256
     """Number of ViT patches per image (depends on model)."""
