@@ -199,7 +199,7 @@ class DataLoad:
     """Directory with .bin shards and a metadata.json file for evaluation data."""
     patches: typing.Literal["cls", "patches", "meanpool", "all"] = "patches"
     """Which kinds of patches to use. 'cls' indicates just the [CLS] token (if any). 'patches' indicates it will return all patches. 'meanpool' returns the mean of all image patches. 'all' returns all patches and the [CLS] token."""
-    layer: int | typing.Literal["all", "meanpool"] = -2
+    layer: int | typing.Literal["all", "meanpool", "norm", "ln_post"] = -2
     """.. todo: document this field."""
     clamp: float = 1e5
     """Maximum value for activations; activations will be clamped to within [-clamp, clamp]`."""

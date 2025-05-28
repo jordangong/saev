@@ -11,7 +11,11 @@ from saev import activations, config
 
 source_shard_dir = sys.argv[1]
 target_shard_dir = sys.argv[2]
-layer = -2 if len(sys.argv) == 3 else int(sys.argv[3])
+layer = -2 if len(sys.argv) == 3 else sys.argv[3]
+try:
+    layer = int(layer)
+except ValueError:
+    pass
 
 source_shard_dirs = sorted(glob.glob(os.path.join(source_shard_dir, "*/*")))
 target_shard_dirs = []

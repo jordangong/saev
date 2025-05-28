@@ -434,7 +434,7 @@ class Dataset(torch.utils.data.Dataset):
 
         # Pick a really big number so that if you accidentally use this when you shouldn't, you get an out of bounds IndexError.
         self.layer_index = 1_000_000
-        if isinstance(self.cfg.layer, int):
+        if isinstance(self.cfg.layer, int | str):
             err_msg = f"Non-exact matches for .layer field not supported; {self.cfg.layer} not in {self.metadata.layers}."
             assert self.cfg.layer in self.metadata.layers, err_msg
             self.layer_index = self.metadata.layers.index(self.cfg.layer)
@@ -554,7 +554,7 @@ class Dataset(torch.utils.data.Dataset):
             )
 
         match (self.cfg.patches, self.cfg.layer):
-            case ("cls", int()):
+            case ("cls", int() | "norm" | "ln_post"):
                 img_act = self.get_img_patches(i)
                 # Select layer's cls token.
                 act = img_act[self.layer_index, 0, :]
@@ -566,7 +566,7 @@ class Dataset(torch.utils.data.Dataset):
                 # Meanpool over the layers
                 act = cls_act.mean(axis=0)
                 return self.Example(act=self.transform(act), image_i=i, patch_i=-1)
-            case ("meanpool", int()):
+            case ("meanpool", int() | "norm" | "ln_post"):
                 img_act = self.get_img_patches(i)
                 # Select layer's patches.
                 layer_act = img_act[self.layer_index, 1:, :]
@@ -580,7 +580,7 @@ class Dataset(torch.utils.data.Dataset):
                 # Meanpool over the layers and patches
                 act = act.mean(axis=(0, 1))
                 return self.Example(act=self.transform(act), image_i=i, patch_i=-1)
-            case ("patches", int()):
+            case ("patches", int() | "norm" | "ln_post"):
                 n_imgs_per_shard = (
                     self.metadata.n_patches_per_shard
                     // len(self.metadata.layers)
@@ -620,7 +620,7 @@ class Dataset(torch.utils.data.Dataset):
                     image_i=i // self.metadata.n_patches_per_img,
                     patch_i=i % self.metadata.n_patches_per_img,
                 )
-            case ("all", int()):
+            case ("all", int() | "norm" | "ln_post"):
                 n_imgs_per_shard = (
                     self.metadata.n_patches_per_shard
                     // len(self.metadata.layers)
@@ -705,7 +705,7 @@ class Dataset(torch.utils.data.Dataset):
             case ("cls", "all"):
                 # Return a CLS token from a random image and random layer.
                 return self.metadata.n_imgs * len(self.metadata.layers)
-            case ("cls", int()):
+            case ("cls", int() | "norm" | "ln_post"):
                 # Return a CLS token from a random image and fixed layer.
                 return self.metadata.n_imgs
             case ("cls", "meanpool"):
@@ -714,13 +714,13 @@ class Dataset(torch.utils.data.Dataset):
             case ("meanpool", "all"):
                 # Return the meanpool of all patches from a random image and random layer.
                 return self.metadata.n_imgs * len(self.metadata.layers)
-            case ("meanpool", int()):
+            case ("meanpool", int() | "norm" | "ln_post"):
                 # Return the meanpool of all patches from a random image and fixed layer.
                 return self.metadata.n_imgs
             case ("meanpool", "meanpool"):
                 # Return the meanpool of all patches from a random image and meanpool over all layers.
                 return self.metadata.n_imgs
-            case ("patches", int()):
+            case ("patches", int() | "norm" | "ln_post"):
                 # Return a patch from a random image, fixed layer, and random patch.
                 return self.metadata.n_imgs * (self.metadata.n_patches_per_img)
             case ("patches", "meanpool"):
@@ -733,7 +733,7 @@ class Dataset(torch.utils.data.Dataset):
                     * len(self.metadata.layers)
                     * self.metadata.n_patches_per_img
                 )
-            case ("all", int()):
+            case ("all", int() | "norm" | "ln_post"):
                 # Return all tokens (CLS + patches) from a random image and fixed layer.
                 return self.metadata.n_imgs * (self.metadata.n_patches_per_img + 1)
             case _:
@@ -746,7 +746,7 @@ class Dataset(torch.utils.data.Dataset):
         perm = np.random.default_rng(seed=42).permutation(num_acts)
 
         match (self.cfg.patches, self.cfg.layer):
-            case ("cls", int()):
+            case ("cls", int() | "norm" | "ln_post"):
                 cls_mask = np.zeros(num_acts, dtype=bool)
                 cls_mask[0:num_acts + 1:self.metadata.n_patches_per_img + 1] = True
                 perm_cls_mask = cls_mask[perm]
@@ -757,7 +757,7 @@ class Dataset(torch.utils.data.Dataset):
                 perm_patch_ids = np.full(len(cls_perm), -1)
 
                 return global_ids, perm_image_ids, perm_patch_ids
-            case ("patches", int()):
+            case ("patches", int() | "norm" | "ln_post"):
                 patch_mask = np.ones(num_acts, dtype=bool)
                 patch_mask[0:num_acts + 1:self.metadata.n_patches_per_img + 1] = False
                 perm_patch_mask = patch_mask[perm]
@@ -768,7 +768,7 @@ class Dataset(torch.utils.data.Dataset):
                 perm_patch_ids = patch_perm % (self.metadata.n_patches_per_img + 1) - 1
 
                 return global_ids, perm_image_ids, perm_patch_ids
-            case ("all", int()):
+            case ("all", int() | "norm" | "ln_post"):
                 perm_image_ids = perm // (self.metadata.n_patches_per_img + 1)
                 perm_patch_ids = perm % (self.metadata.n_patches_per_img + 1) - 1
 
